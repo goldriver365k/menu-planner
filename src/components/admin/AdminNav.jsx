@@ -1,0 +1,30 @@
+const SECTIONS = [
+  { key: 'dashboard', label: '대시보드' },
+  { key: 'menus', label: '메뉴 관리' },
+  { key: 'ingredients', label: '식재료 관리' },
+  { key: 'weekly', label: '주간 식단' },
+  { key: 'history', label: '사용 이력' },
+  { key: 'settings', label: '설정' },
+]
+
+export default function AdminNav({ active, onChange }) {
+  return (
+    <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:pr-3">
+      {SECTIONS.map((section) => (
+        <button
+          key={section.key}
+          type="button"
+          onClick={() => onChange(section.key)}
+          className={[
+            'shrink-0 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors sm:w-40',
+            active === section.key
+              ? 'bg-blue-50 text-blue-700'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700',
+          ].join(' ')}
+        >
+          {section.label}
+        </button>
+      ))}
+    </nav>
+  )
+}

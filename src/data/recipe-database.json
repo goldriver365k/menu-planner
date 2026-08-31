@@ -1,0 +1,28 @@
+[
+  { "menu_id": "M0091", "ingredient_id": "I0001", "quantity": 120, "unit": "g" },
+  { "menu_id": "M0091", "ingredient_id": "I0030", "quantity": 15, "unit": "g" },
+  { "menu_id": "M0091", "ingredient_id": "I0007", "quantity": 40, "unit": "g" },
+  { "menu_id": "M0091", "ingredient_id": "I0006", "quantity": 10, "unit": "g" },
+  { "menu_id": "M0091", "ingredient_id": "I0008", "quantity": 5, "unit": "g" },
+  { "menu_id": "M0091", "ingredient_id": "I0032", "quantity": 8, "unit": "ml" },
+
+  { "menu_id": "M0042", "ingredient_id": "I0031", "quantity": 20, "unit": "g" },
+  { "menu_id": "M0042", "ingredient_id": "I0005", "quantity": 50, "unit": "g" },
+  { "menu_id": "M0042", "ingredient_id": "I0007", "quantity": 30, "unit": "g" },
+  { "menu_id": "M0042", "ingredient_id": "I0013", "quantity": 40, "unit": "g" },
+  { "menu_id": "M0042", "ingredient_id": "I0025", "quantity": 5, "unit": "g" },
+
+  { "menu_id": "M0306", "ingredient_id": "I0004", "quantity": 2, "unit": "개" },
+  { "menu_id": "M0306", "ingredient_id": "I0006", "quantity": 5, "unit": "g" },
+  { "menu_id": "M0306", "ingredient_id": "I0028", "quantity": 3, "unit": "ml" },
+
+  { "menu_id": "M0001", "ingredient_id": "I0026", "quantity": 90, "unit": "g" },
+
+  { "menu_id": "M0276", "ingredient_id": "I0011", "quantity": 70, "unit": "g" },
+  { "menu_id": "M0276", "ingredient_id": "I0008", "quantity": 3, "unit": "g" },
+  { "menu_id": "M0276", "ingredient_id": "I0033", "quantity": 3, "unit": "ml" },
+
+  { "menu_id": "M0261", "ingredient_id": "I0012", "quantity": 80, "unit": "g" },
+  { "menu_id": "M0261", "ingredient_id": "I0008", "quantity": 3, "unit": "g" },
+  { "menu_id": "M0261", "ingredient_id": "I0033", "quantity": 3, "unit": "ml" }
+]
