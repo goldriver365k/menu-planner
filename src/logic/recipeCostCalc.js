@@ -12,33 +12,7 @@
 
 import { getIngredientMasterById } from '../data/ingredientMasterDatabase'
 import { getStandardRecipeForMenu } from '../data/standardRecipeDatabase'
-
-const WEIGHT_UNITS_TO_GRAM = { g: 1, kg: 1000 }
-const VOLUME_UNITS_TO_ML = { ml: 1, L: 1000 }
-
-function unitFamily(unit) {
-  if (unit in WEIGHT_UNITS_TO_GRAM) return 'WEIGHT'
-  if (unit in VOLUME_UNITS_TO_ML) return 'VOLUME'
-  return 'COUNT' // 개/봉지/판 등 — 변환표가 없는 단위는 전부 "그 단위 그대로"인 계열로 묶는다.
-}
-
-// 같은 계열(WEIGHT 또는 VOLUME)이면 kg↔g, L↔ml 변환이 가능하다. COUNT 계열은 단위 문자열이
-// 정확히 같을 때만("개"와 "봉지"는 서로 바꿀 수 없음) 계산 가능하다고 본다.
-function unitsAreConvertible(unitA, unitB) {
-  const familyA = unitFamily(unitA)
-  const familyB = unitFamily(unitB)
-  if (familyA !== familyB) return false
-  if (familyA === 'COUNT') return unitA === unitB
-  return true
-}
-
-// 수량을 그 계열의 기본 단위(WEIGHT → g, VOLUME → ml, COUNT → 그 단위 자신) 수량으로 바꾼다.
-function toBaseQuantity(quantity, unit) {
-  const family = unitFamily(unit)
-  if (family === 'WEIGHT') return quantity * WEIGHT_UNITS_TO_GRAM[unit]
-  if (family === 'VOLUME') return quantity * VOLUME_UNITS_TO_ML[unit]
-  return quantity
-}
+import { unitsAreConvertible, toBaseQuantity } from './unitConversion'
 
 // 식재료 하나의 "구매단위 기본 수량 1단위당 원가". 구매가·구매수량이 없거나 0 이하면
 // 실제로 가격이 입력되지 않은 것으로 보고 임의 가격을 만들지 않는다('가격 미등록').
