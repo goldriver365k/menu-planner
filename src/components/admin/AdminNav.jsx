@@ -4,6 +4,7 @@ const SECTIONS = [
   { key: 'neisImport', label: '급식 메뉴 가져오기' },
   { key: 'unclassified', label: '미분류 메뉴' },
   { key: 'ingredients', label: '식재료 관리' },
+  { key: 'ingredientMaster', label: '식재료 마스터 DB' },
   { key: 'weekly', label: '주간 식단' },
   { key: 'history', label: '사용 이력' },
   { key: 'settings', label: '설정' },
