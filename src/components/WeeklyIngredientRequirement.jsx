@@ -1,6 +1,34 @@
 import { useMemo, useState } from 'react'
-import { DAYS, DAY_LABELS } from '../data/planConfig'
-import { calcWeeklyIngredientRequirement } from '../logic/ingredientRequirement'
+import { DAYS, DAY_LABELS, MEAL_TYPES, MEAL_LABELS } from '../data/planConfig'
+import { calcWeeklyIngredientRequirement, getProcurementBaseCount } from '../logic/ingredientRequirement'
+import { getMealCountRecord } from '../data/mealCountRecords'
+import { addDaysISO } from '../data/menuHistory'
+
+// STEP 5-2: 이 날짜의 끼니별로 어떤 기준(준비계획/예상 식수)으로 필요량을 계산했는지
+// 보여준다. 주간 합계 보기는 여러 날짜·끼니가 섞여 기준이 하나로 정해지지 않을 수 있어
+// 일별 보기에서만 표시한다.
+function ProcurementBasisNote({ date, mealsSettings }) {
+  if (!date) return null
+  const items = MEAL_TYPES.filter((mealType) => mealsSettings[mealType]?.isActive).map((mealType) => {
+    const plannedPreparationCount = getMealCountRecord(date, mealType)?.plannedPreparationCount
+    const basis = getProcurementBaseCount({ plannedPreparationCount, expectedCount: mealsSettings[mealType]?.expectedCount })
+    return { mealType, basis }
+  })
+  if (items.length === 0) return null
+
+  return (
+    <p className="mb-2 text-xs text-slate-500">
+      발주 계산 기준:{' '}
+      {items
+        .map(({ mealType, basis }) =>
+          basis.count == null
+            ? `${MEAL_LABELS[mealType]} 발주 계산 기준 인원을 입력하세요`
+            : `${MEAL_LABELS[mealType]} ${basis.count}${basis.source === 'plannedPreparationCount' ? '인분(준비계획)' : '명(예상 식수)'}`
+        )
+        .join(' · ')}
+    </p>
+  )
+}
 
 function RequirementTable({ rows }) {
   if (rows.length === 0) {
@@ -38,16 +66,19 @@ function RequirementTable({ rows }) {
 // 작업지시서: 기존 Planner의 expectedCount로 식재료 총 필요량을 계산한다. 레시피가 없는
 // 메뉴는 집계에서 조용히 빠진다(표준 레시피 화면에서 등록하면 다음 생성부터 반영된다) —
 // 화면을 복잡하게 만들지 않기 위해 별도의 누락 안내는 추가하지 않았다.
-export default function WeeklyIngredientRequirement({ weekMenu, operatingDays, mealsSettings }) {
+export default function WeeklyIngredientRequirement({ weekMenu, operatingDays, mealsSettings, weekStartDate, refreshToken }) {
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('weekly') // 'weekly' | 'mon' | 'tue' | ...
 
-  const result = useMemo(
-    () => calcWeeklyIngredientRequirement(weekMenu, operatingDays, mealsSettings),
-    [weekMenu, operatingDays, mealsSettings]
-  )
+  const result = useMemo(() => {
+    // refreshToken은 계산에 쓰이지 않는다 — plannedPreparationCount가 LocalStorage에서
+    // 바뀌었을 때(이 컴포넌트가 직접 구독하지 않는 값) 다시 계산하라는 신호로만 쓴다.
+    void refreshToken
+    return calcWeeklyIngredientRequirement(weekMenu, operatingDays, mealsSettings, weekStartDate)
+  }, [weekMenu, operatingDays, mealsSettings, weekStartDate, refreshToken])
 
   const rows = view === 'weekly' ? result.weekly : result.daily[view] || []
+  const selectedDate = view !== 'weekly' && weekStartDate ? addDaysISO(weekStartDate, DAYS.indexOf(view)) : null
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -94,6 +125,8 @@ export default function WeeklyIngredientRequirement({ weekMenu, operatingDays, m
               </button>
             ))}
           </div>
+
+          <ProcurementBasisNote date={selectedDate} mealsSettings={mealsSettings} />
 
           <div className="overflow-x-auto">
             <RequirementTable rows={rows} />

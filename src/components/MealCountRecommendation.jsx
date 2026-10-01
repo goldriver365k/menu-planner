@@ -23,7 +23,7 @@ function fmtSigned(n) {
 // STEP 4-4: 예상 식수 자동 추천. 추천값은 사용자가 [추천값 적용]을 눌러야만 기존
 // expectedCount에 반영된다(자동 적용 없음) — onApply는 PlannerPage의 updateMeal을 그대로
 // 호출하는 콜백이다.
-export default function MealCountRecommendation({ date, day, mealType, currentExpectedCount, mealResult, onApply }) {
+export default function MealCountRecommendation({ date, day, mealType, currentExpectedCount, mealResult, onApply, onPlannedPreparationChanged }) {
   const [applied, setApplied] = useState(false)
   const [preparationApplied, setPreparationApplied] = useState(false)
   const [preparationError, setPreparationError] = useState('')
@@ -58,6 +58,7 @@ export default function MealCountRecommendation({ date, day, mealType, currentEx
     }
     setPreparationError('')
     setPreparationApplied(true)
+    onPlannedPreparationChanged?.()
   }
 
   if (!result.hasData) {

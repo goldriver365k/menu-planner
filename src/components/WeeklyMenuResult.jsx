@@ -31,6 +31,7 @@ export default function WeeklyMenuResult({
   onReplace,
   onAdjustCost,
   onApplyRecommendedCount,
+  onPlannedPreparationChanged,
 }) {
   const [selected, setSelected] = useState(null) // { day, mealType }
 
@@ -164,6 +165,7 @@ export default function WeeklyMenuResult({
               mealType={selected.mealType}
               expectedCount={mealsSettings[selected.mealType]?.expectedCount}
               mealResult={selectedResult}
+              onPlannedPreparationChanged={onPlannedPreparationChanged}
             />
           </div>
           <div className="mt-3">
@@ -175,6 +177,7 @@ export default function WeeklyMenuResult({
               currentExpectedCount={mealsSettings[selected.mealType]?.expectedCount}
               mealResult={selectedResult}
               onApply={onApplyRecommendedCount}
+              onPlannedPreparationChanged={onPlannedPreparationChanged}
             />
           </div>
         </div>

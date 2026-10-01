@@ -10,23 +10,51 @@ import { getStandardRecipeForMenu } from '../data/standardRecipeDatabase'
 import { getIngredientMasterById } from '../data/ingredientMasterDatabase'
 import { calcIngredientUnitCost } from './recipeCostCalc'
 import { addDaysISO } from '../data/menuHistory'
+import { getMealCountRecord } from '../data/mealCountRecords'
 import { unitFamily, toBaseQuantity, formatBaseQuantity } from './unitConversion'
 
-// 하루치 weekMenu[day](끼니별 결과)에서 "메뉴 × 끼니 예상 식수"만큼 필요한 식재료를
+// STEP 5-2: 발주 계산 기준 인원 결정. 우선순위 — 1순위 plannedPreparationCount(사용자가
+// 확정한 준비계획), 2순위 expectedCount(최초 예상 식수). recommendedCount(4-4)나
+// actualCount(실적)는 발주 기준으로 자동 사용하지 않는다 — 사용자가 [추천 준비량 적용]을
+// 눌러 plannedPreparationCount에 반영했을 때만 간접적으로 영향을 준다.
+export function getProcurementBaseCount({ plannedPreparationCount, expectedCount }) {
+  const planned = Number(plannedPreparationCount)
+  if (Number.isFinite(planned) && planned > 0) {
+    return { count: planned, source: 'plannedPreparationCount' }
+  }
+
+  const expected = Number(expectedCount)
+  if (Number.isFinite(expected) && expected > 0) {
+    return { count: expected, source: 'expectedCount' }
+  }
+
+  return { count: null, source: 'none' }
+}
+
+// 하루치 weekMenu[day](끼니별 결과)에서 "메뉴 × 발주 계산 기준 인원"만큼 필요한 식재료를
 // { `${ingredientId}:${family}` → { ingredientId, name, family, netBase, actualBase } }로
 // 누적한다. netBase는 수율을 적용하기 전 순사용량, actualBase는 수율을 적용한(실제 구매
 // 필요량) 값이다 — 발주서 화면은 둘 다 보여줘야 해서 따로 들고 있는다.
 // 같은 식재료라도 레시피마다 단위 계열(무게/부피/개수)이 다르면 따로 집계한다 — 서로 다른
 // 계열끼리는 임의로 합칠 수 없기 때문이다(예: 식용유를 어떤 레시피는 g, 어떤 레시피는 ml로
 // 쓰는 경우).
-function accumulateDay(dayMenu, mealsSettings, bucket) {
+//
+// STEP 5-2: 기준 인원은 getProcurementBaseCount()로 정한다(plannedPreparationCount 우선,
+// 없으면 expectedCount) — date가 있으면 그 날짜+끼니의 4-1 기록에서 plannedPreparationCount를
+// 찾는다. 한 끼의 모든 메뉴(밥/국/메인/반찬/김치)에 같은 기준 인원을 적용한다(9장).
+function accumulateDay(dayMenu, mealsSettings, bucket, date = null) {
   for (const mealType of MEAL_TYPES) {
     const mealSetting = mealsSettings[mealType]
     if (!mealSetting?.isActive) continue
-    const expectedCount = Number(mealSetting.expectedCount) || 0
-    if (expectedCount <= 0) continue
     const mealResult = dayMenu?.[mealType]
     if (!mealResult) continue
+
+    const plannedPreparationCount = date ? getMealCountRecord(date, mealType)?.plannedPreparationCount : null
+    const { count: baseCount } = getProcurementBaseCount({
+      plannedPreparationCount,
+      expectedCount: mealSetting.expectedCount,
+    })
+    if (!baseCount || baseCount <= 0) continue
 
     for (const menuItem of flattenMealItems(mealResult)) {
       const lines = getStandardRecipeForMenu(menuItem.id)
@@ -36,7 +64,7 @@ function accumulateDay(dayMenu, mealsSettings, bucket) {
 
         const family = unitFamily(line.unit)
         const perServingBase = toBaseQuantity(Number(line.quantity) || 0, line.unit)
-        const totalNetBase = perServingBase * expectedCount
+        const totalNetBase = perServingBase * baseCount
 
         // 수율(usable_yield) 반영: 실제 필요량 = 순사용량 ÷ 수율
         const yieldPercent = Number(ingredient.usable_yield) > 0 ? Number(ingredient.usable_yield) : 100
@@ -89,19 +117,21 @@ function bucketToRows(bucket) {
 }
 
 // weekMenu: PlannerPage의 weekMenu 상태(day → mealType → 끼니결과). operatingDays/mealsSettings도
-// PlannerPage의 settings를 그대로 넘긴다.
+// PlannerPage의 settings를 그대로 넘긴다. weekStartDate가 있으면 날짜별 plannedPreparationCount
+// (5-2)를 찾아 기준 인원으로 우선 사용하고, 없으면(예전 호출부 호환) expectedCount만 쓴다.
 // 반환값: { daily: { [day]: rows }, weekly: rows } — rows는 bucketToRows()가 만드는 배열.
-export function calcWeeklyIngredientRequirement(weekMenu, operatingDays, mealsSettings) {
+export function calcWeeklyIngredientRequirement(weekMenu, operatingDays, mealsSettings, weekStartDate = null) {
   const daily = {}
   const weeklyBucket = {}
 
-  for (const day of DAYS) {
+  DAYS.forEach((day, dayIndex) => {
     if (!operatingDays[day] || !weekMenu[day]) {
       daily[day] = []
-      continue
+      return
     }
+    const date = weekStartDate ? addDaysISO(weekStartDate, dayIndex) : null
     const dayBucket = {}
-    accumulateDay(weekMenu[day], mealsSettings, dayBucket)
+    accumulateDay(weekMenu[day], mealsSettings, dayBucket, date)
     daily[day] = bucketToRows(dayBucket)
 
     for (const [key, entry] of Object.entries(dayBucket)) {
@@ -109,7 +139,7 @@ export function calcWeeklyIngredientRequirement(weekMenu, operatingDays, mealsSe
       weeklyBucket[key].netBase += entry.netBase
       weeklyBucket[key].actualBase += entry.actualBase
     }
-  }
+  })
 
   return { daily, weekly: bucketToRows(weeklyBucket) }
 }
@@ -210,7 +240,7 @@ export function calcPurchaseOrderRows(weekMenu, operatingDays, mealsSettings, we
       return
     }
     const dayBucket = {}
-    accumulateDay(weekMenu[day], mealsSettings, dayBucket)
+    accumulateDay(weekMenu[day], mealsSettings, dayBucket, date)
     daily[day] = { date, rows: bucketToOrderRows(dayBucket, date) }
 
     for (const [key, entry] of Object.entries(dayBucket)) {

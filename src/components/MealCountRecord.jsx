@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { getMealCountRecord, saveActualMealCount, saveLeftoverRecord, clearLeftoverRecord } from '../data/mealCountRecords'
+import {
+  getMealCountRecord,
+  saveActualMealCount,
+  saveLeftoverRecord,
+  clearLeftoverRecord,
+  savePlannedPreparationCount,
+} from '../data/mealCountRecords'
 import { calcMealCountAccuracy } from '../logic/mealCountAccuracy'
 import {
   calculateUsageRate,
@@ -7,6 +13,7 @@ import {
   calculateWasteRate,
   calculatePreparationDifference,
 } from '../logic/mealLeftoverStats'
+import { getProcurementBaseCount } from '../logic/ingredientRequirement'
 import { flattenMealItems } from '../logic/generateMeal'
 
 function fmt1(n) {
@@ -22,12 +29,13 @@ function toInputString(value) {
 // 저장 시 해당 끼니에 실제로 나간 메뉴 ID 목록(menuIds)도 함께 기록해 두는데, 분석은
 // 하지 않고 데이터만 쌓아 둔다. 각 입력란은 서로 독립적으로 비워 둘 수 있다(미입력=null,
 // 0=실제로 없음을 구분한다).
-export default function MealCountRecord({ date, mealType, expectedCount, mealResult }) {
+export default function MealCountRecord({ date, mealType, expectedCount, mealResult, onPlannedPreparationChanged }) {
   const [record, setRecord] = useState(() => getMealCountRecord(date, mealType))
   const [input, setInput] = useState(() => toInputString(getMealCountRecord(date, mealType)?.actualCount))
   const [preparedInput, setPreparedInput] = useState(() => toInputString(getMealCountRecord(date, mealType)?.preparedCount))
   const [leftoverInput, setLeftoverInput] = useState(() => toInputString(getMealCountRecord(date, mealType)?.leftoverCount))
   const [wasteInput, setWasteInput] = useState(() => toInputString(getMealCountRecord(date, mealType)?.wasteCount))
+  const [plannedInput, setPlannedInput] = useState(() => toInputString(getMealCountRecord(date, mealType)?.plannedPreparationCount))
   const [error, setError] = useState('')
 
   const handleSave = () => {
@@ -48,8 +56,16 @@ export default function MealCountRecord({ date, mealType, expectedCount, mealRes
       setError(res2.reason)
       return
     }
+    // STEP 5-2: 준비계획(plannedPreparationCount)은 사용자가 이 입력란에서 직접 바꿀 수
+    // 있어야 한다(6장) — [추천 준비량 적용]뿐 아니라 이 저장 버튼으로도 수정 가능하다.
+    const res3 = savePlannedPreparationCount(date, mealType, plannedInput)
+    if (!res3.ok) {
+      setError(res3.reason)
+      return
+    }
     setError('')
-    setRecord(res2.record)
+    setRecord(res3.record)
+    onPlannedPreparationChanged?.()
   }
 
   const handleClearLeftover = () => {
@@ -76,6 +92,10 @@ export default function MealCountRecord({ date, mealType, expectedCount, mealRes
   const wasteRate = calculateWasteRate(wasteCount, preparedCount)
   const preparationDiff = calculatePreparationDifference(preparedCount, record?.actualCount ?? null)
   const overPrepared = record?.actualCount != null && preparedCount != null && record.actualCount > preparedCount
+  const procurementBasis = getProcurementBaseCount({
+    plannedPreparationCount: record?.plannedPreparationCount ?? null,
+    expectedCount,
+  })
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -86,6 +106,17 @@ export default function MealCountRecord({ date, mealType, expectedCount, mealRes
           <span className="block text-xs text-slate-400">예상 식수</span>
           <span className="text-sm font-medium text-slate-700">{Number(expectedCount) || 0}명</span>
         </div>
+        <label className="block">
+          <span className="mb-1 block text-xs text-slate-400">준비계획(인분)</span>
+          <input
+            type="number"
+            min="0"
+            value={plannedInput}
+            onChange={(e) => setPlannedInput(e.target.value)}
+            placeholder="예: 370"
+            className="w-24 rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </label>
         <label className="block">
           <span className="mb-1 block text-xs text-slate-400">실제 식수</span>
           <input
@@ -170,9 +201,17 @@ export default function MealCountRecord({ date, mealType, expectedCount, mealRes
 
       <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
         <div>
-          <span className="block text-xs text-slate-400">계획 준비량(추천 적용값)</span>
+          <span className="block text-xs text-slate-400">준비계획</span>
           <span className="text-sm font-medium text-slate-700">
-            {record?.plannedPreparationCount != null ? `${record.plannedPreparationCount}인분` : '미적용'}
+            {record?.plannedPreparationCount != null ? `${record.plannedPreparationCount}인분` : '미입력'}
+          </span>
+        </div>
+        <div>
+          <span className="block text-xs text-slate-400">발주 계산 기준</span>
+          <span className="text-sm font-medium text-slate-700">
+            {procurementBasis.count == null
+              ? '발주 계산 기준 인원을 입력하세요'
+              : `${procurementBasis.count}${procurementBasis.source === 'plannedPreparationCount' ? '인분(준비계획)' : '명(예상 식수)'}`}
           </span>
         </div>
         <div>

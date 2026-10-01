@@ -23,6 +23,12 @@ export default function PlannerPage({ onOpenAdmin }) {
   const { history, replaceWeekEntries, clearHistory } = useMenuHistory()
   const [weekMenu, setWeekMenu] = useState(null)
   const [lockedSlotKeys, setLockedSlotKeys] = useState(() => new Set())
+  // STEP 5-2: plannedPreparationCount는 mealCountRecords(LocalStorage)에 직접 저장되고
+  // weekMenu/settings와는 별도 상태라, 바뀌어도 이 값들을 읽는 컴포넌트가 자동으로 다시
+  // 계산되지 않는다. 이 숫자를 올려 식재료 발주량/발주서의 useMemo가 다시 계산하도록
+  // "다시 계산해" 신호로만 쓴다(값 자체는 의미 없음).
+  const [plannedPrepVersion, setPlannedPrepVersion] = useState(0)
+  const handlePlannedPreparationChanged = () => setPlannedPrepVersion((v) => v + 1)
 
   const toggleDay = (day) => {
     setSettings((prev) => ({
@@ -252,17 +258,21 @@ export default function PlannerPage({ onOpenAdmin }) {
               onReplace={handleReplace}
               onAdjustCost={handleAdjustCost}
               onApplyRecommendedCount={handleApplyRecommendedCount}
+              onPlannedPreparationChanged={handlePlannedPreparationChanged}
             />
             <WeeklyIngredientRequirement
               weekMenu={weekMenu}
               operatingDays={settings.operatingDays}
               mealsSettings={settings.meals}
+              weekStartDate={settings.weekStartDate}
+              refreshToken={plannedPrepVersion}
             />
             <PurchaseOrderSheet
               weekMenu={weekMenu}
               operatingDays={settings.operatingDays}
               mealsSettings={settings.meals}
               weekStartDate={settings.weekStartDate}
+              refreshToken={plannedPrepVersion}
             />
           </>
         )}

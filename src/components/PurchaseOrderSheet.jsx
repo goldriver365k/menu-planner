@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { DAYS, DAY_LABELS } from '../data/planConfig'
-import { calcPurchaseOrderRows } from '../logic/ingredientRequirement'
+import { DAYS, DAY_LABELS, MEAL_TYPES, MEAL_LABELS } from '../data/planConfig'
+import { calcPurchaseOrderRows, getProcurementBaseCount } from '../logic/ingredientRequirement'
 import { isOrderChecked, setOrderChecked } from '../data/purchaseOrderStatus'
+import { getMealCountRecord } from '../data/mealCountRecords'
 
 function formatWon(n) {
   if (n == null) return '가격 미등록'
@@ -56,6 +57,41 @@ function OrderRow({ row }) {
   )
 }
 
+// STEP 5-2: 이 날짜의 끼니별로 어떤 기준(준비계획/예상 식수)으로 발주량을 계산했는지,
+// 그리고 이미 "발주완료"로 체크된 항목이 있는지 보여준다. 체크된 항목이 있으면 준비계획이
+// 바뀌어도 그 체크는 자동으로 풀리거나 수정되지 않는다 — 안내만 하고 재발주는 하지 않는다.
+function ProcurementBasisNote({ date, mealsSettings, rows }) {
+  if (!date) return null
+  const items = MEAL_TYPES.filter((mealType) => mealsSettings[mealType]?.isActive).map((mealType) => {
+    const plannedPreparationCount = getMealCountRecord(date, mealType)?.plannedPreparationCount
+    const basis = getProcurementBaseCount({ plannedPreparationCount, expectedCount: mealsSettings[mealType]?.expectedCount })
+    return { mealType, basis }
+  })
+  if (items.length === 0) return null
+
+  const hasCheckedRow = rows.some((row) => isOrderChecked(row.date ?? 'WEEKLY', row.ingredientId))
+
+  return (
+    <div className="mb-3 print:hidden">
+      <p className="text-xs text-slate-500">
+        발주 계산 기준:{' '}
+        {items
+          .map(({ mealType, basis }) =>
+            basis.count == null
+              ? `${MEAL_LABELS[mealType]} 발주 계산 기준 인원을 입력하세요`
+              : `${MEAL_LABELS[mealType]} ${basis.count}${basis.source === 'plannedPreparationCount' ? '인분(준비계획)' : '명(예상 식수)'}`
+          )
+          .join(' · ')}
+      </p>
+      {hasCheckedRow && (
+        <p className="mt-1 text-xs text-amber-600">
+          준비계획이 변경되었을 수 있습니다. 이미 발주완료로 표시된 항목이 있다면 기존 발주내역을 확인하세요.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function OrderTable({ rows, title }) {
   const totalAmount = rows.reduce((sum, r) => sum + (r.expectedAmount || 0), 0)
   return (
@@ -105,18 +141,21 @@ function OrderTable({ rows, title }) {
 // 작업지시서: 3-4에서 계산한 식재료 필요량을 이용해 발주서 화면만 만든다. 화려한 디자인
 // 없이 표 하나 + 체크박스 + 인쇄 버튼이 전부다. PDF 라이브러리를 쓰지 않고 브라우저
 // window.print()와 @media print(index.css)로 A4 인쇄를 지원한다.
-export default function PurchaseOrderSheet({ weekMenu, operatingDays, mealsSettings, weekStartDate }) {
+export default function PurchaseOrderSheet({ weekMenu, operatingDays, mealsSettings, weekStartDate, refreshToken }) {
   const [expanded, setExpanded] = useState(false)
   const [view, setView] = useState('weekly') // 'weekly' | 'mon' | ...
 
-  const result = useMemo(
-    () => calcPurchaseOrderRows(weekMenu, operatingDays, mealsSettings, weekStartDate),
-    [weekMenu, operatingDays, mealsSettings, weekStartDate]
-  )
+  const result = useMemo(() => {
+    // refreshToken은 계산에 쓰이지 않는다 — plannedPreparationCount가 LocalStorage에서
+    // 바뀌었을 때(이 컴포넌트가 직접 구독하지 않는 값) 다시 계산하라는 신호로만 쓴다.
+    void refreshToken
+    return calcPurchaseOrderRows(weekMenu, operatingDays, mealsSettings, weekStartDate)
+  }, [weekMenu, operatingDays, mealsSettings, weekStartDate, refreshToken])
 
   const isWeekly = view === 'weekly'
   const rows = isWeekly ? result.weekly.rows : result.daily[view]?.rows || []
   const title = isWeekly ? `주간 발주서 (${result.weekly.dateRange})` : `일별 발주서 (${result.daily[view]?.date})`
+  const selectedDate = isWeekly ? null : result.daily[view]?.date || null
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 print:border-0 print:p-0">
@@ -177,6 +216,8 @@ export default function PurchaseOrderSheet({ weekMenu, operatingDays, mealsSetti
               A4 인쇄
             </button>
           </div>
+
+          <ProcurementBasisNote date={selectedDate} mealsSettings={mealsSettings} rows={rows} />
 
           <OrderTable rows={rows} title={title} />
         </div>
