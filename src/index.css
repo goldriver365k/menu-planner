@@ -9,3 +9,25 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
 }
+
+/* 발주서 A4 인쇄(PurchaseOrderSheet.jsx) — 새 PDF 라이브러리 없이 브라우저 인쇄만 쓴다.
+   .print-area가 붙은 부분만 보이게 하고 나머지 화면(네비게이션, 다른 섹션들)은 숨긴다. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

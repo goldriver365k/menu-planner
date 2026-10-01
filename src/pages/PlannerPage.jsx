@@ -8,6 +8,7 @@ import DailyMenuPreview from '../components/DailyMenuPreview'
 import WeeklyMenuResult from '../components/WeeklyMenuResult'
 import WeeklySummary from '../components/WeeklySummary'
 import WeeklyIngredientRequirement from '../components/WeeklyIngredientRequirement'
+import PurchaseOrderSheet from '../components/PurchaseOrderSheet'
 import DedupHistoryStatus from '../components/DedupHistoryStatus'
 import { MEAL_TYPES, DAYS } from '../data/planConfig'
 import { generateWeekMenu, computeWeekHistoryEntries } from '../logic/generateWeek'
@@ -247,6 +248,12 @@ export default function PlannerPage({ onOpenAdmin }) {
               weekMenu={weekMenu}
               operatingDays={settings.operatingDays}
               mealsSettings={settings.meals}
+            />
+            <PurchaseOrderSheet
+              weekMenu={weekMenu}
+              operatingDays={settings.operatingDays}
+              mealsSettings={settings.meals}
+              weekStartDate={settings.weekStartDate}
             />
           </>
         )}
