@@ -170,7 +170,13 @@ export default function MealCountRecord({ date, mealType, expectedCount, mealRes
 
       <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
         <div>
-          <span className="block text-xs text-slate-400">준비</span>
+          <span className="block text-xs text-slate-400">계획 준비량(추천 적용값)</span>
+          <span className="text-sm font-medium text-slate-700">
+            {record?.plannedPreparationCount != null ? `${record.plannedPreparationCount}인분` : '미적용'}
+          </span>
+        </div>
+        <div>
+          <span className="block text-xs text-slate-400">준비(실적)</span>
           <span className="text-sm font-medium text-slate-700">{preparedCount != null ? `${preparedCount}인분` : '미입력'}</span>
         </div>
         <div>

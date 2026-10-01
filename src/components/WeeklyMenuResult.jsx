@@ -169,6 +169,7 @@ export default function WeeklyMenuResult({
           <div className="mt-3">
             <MealCountRecommendation
               key={`rec:${selected.day}:${selected.mealType}`}
+              date={selectedDate}
               day={selected.day}
               mealType={selected.mealType}
               currentExpectedCount={mealsSettings[selected.mealType]?.expectedCount}

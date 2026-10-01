@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { getAllMealCountRecords } from '../data/mealCountRecords'
+import { getAllMealCountRecords, savePlannedPreparationCount } from '../data/mealCountRecords'
 import { getRecommendedCount } from '../logic/mealCountRecommendation'
+import { getRecommendedPreparationCount } from '../logic/productionRecommendation'
 import { DAY_LABELS, MEAL_LABELS } from '../data/planConfig'
 
 const SOURCE_LABELS = {
@@ -22,8 +23,10 @@ function fmtSigned(n) {
 // STEP 4-4: 예상 식수 자동 추천. 추천값은 사용자가 [추천값 적용]을 눌러야만 기존
 // expectedCount에 반영된다(자동 적용 없음) — onApply는 PlannerPage의 updateMeal을 그대로
 // 호출하는 콜백이다.
-export default function MealCountRecommendation({ day, mealType, currentExpectedCount, mealResult, onApply }) {
+export default function MealCountRecommendation({ date, day, mealType, currentExpectedCount, mealResult, onApply }) {
   const [applied, setApplied] = useState(false)
+  const [preparationApplied, setPreparationApplied] = useState(false)
+  const [preparationError, setPreparationError] = useState('')
 
   const main1Id = mealResult?.main1?.id ?? null
   const main2Id = mealResult?.main2?.id ?? null
@@ -39,6 +42,22 @@ export default function MealCountRecommendation({ day, mealType, currentExpected
   const handleApply = () => {
     onApply(mealType, result.recommendedCount)
     setApplied(true)
+  }
+
+  // STEP 4-6: "추천 식수"와 "추천 준비량"은 다른 값이다 — 식수 추천이 가능할 때만(hasData)
+  // 그 값을 기준으로 준비량도 추천한다. 식수 추천 자체가 없으면 준비량도 추천하지 않는다.
+  const productionResult = result.hasData
+    ? getRecommendedPreparationCount(allRecords, { day, mealType, recommendedCount: result.recommendedCount })
+    : null
+
+  const handleApplyPreparation = () => {
+    const res = savePlannedPreparationCount(date, mealType, productionResult.recommendedPreparationCount)
+    if (!res.ok) {
+      setPreparationError(res.reason)
+      return
+    }
+    setPreparationError('')
+    setPreparationApplied(true)
   }
 
   if (!result.hasData) {
@@ -93,6 +112,47 @@ export default function MealCountRecommendation({ day, mealType, currentExpected
           </li>
         </ul>
       </div>
+
+      {productionResult && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <h5 className="mb-2 text-sm font-semibold text-slate-900">추천 준비량</h5>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <span className="block text-xs text-slate-400">추천 식수</span>
+              <span className="text-sm font-medium text-slate-700">{result.recommendedCount}명</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-400">추천 준비량</span>
+              <span className="text-lg font-semibold text-blue-600">{productionResult.recommendedPreparationCount}인분</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-400">준비 여유</span>
+              <span className="text-sm font-medium text-slate-700">
+                {productionResult.surplus > 0 ? '+' : ''}
+                {productionResult.surplus}인분
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleApplyPreparation}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              추천 준비량 적용
+            </button>
+            {preparationApplied && <span className="text-xs text-emerald-600">적용되었습니다</span>}
+          </div>
+          {preparationError && <p className="mt-2 text-xs text-rose-600">{preparationError}</p>}
+
+          <div className="mt-2 text-xs text-slate-500">
+            <p className="mb-1 font-medium text-slate-600">추천 근거</p>
+            <ul className="space-y-0.5">
+              {productionResult.reason.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

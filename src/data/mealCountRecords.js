@@ -60,11 +60,12 @@ export function saveActualMealCount(date, mealType, { expectedCount, actualCount
     expectedCount: Number(expectedCount) || 0,
     actualCount: parsedActual,
     menuIds: Array.isArray(menuIds) ? menuIds : [],
-    // STEP 4-5: 잔반/폐기 필드는 이 함수가 다루지 않는다 — 기존 값을 그대로 보존해야
-    // "실제 식수"만 다시 저장해도 이미 기록해 둔 준비량/남은 음식/폐기량이 지워지지 않는다.
+    // STEP 4-5/4-6: 잔반/폐기/계획준비량 필드는 이 함수가 다루지 않는다 — 기존 값을
+    // 그대로 보존해야 "실제 식수"만 다시 저장해도 이미 기록해 둔 값들이 지워지지 않는다.
     preparedCount: existing?.preparedCount ?? null,
     leftoverCount: existing?.leftoverCount ?? null,
     wasteCount: existing?.wasteCount ?? null,
+    plannedPreparationCount: existing?.plannedPreparationCount ?? null,
     updated_at: new Date().toISOString().slice(0, 10),
   }
 
@@ -129,6 +130,8 @@ export function saveLeftoverRecord(date, mealType, { preparedCount, leftoverCoun
     preparedCount: prepared.value,
     leftoverCount: leftover.value,
     wasteCount: waste.value,
+    // STEP 4-6: 계획 준비량도 이 함수가 다루지 않는 필드라 그대로 보존한다.
+    plannedPreparationCount: existing?.plannedPreparationCount ?? null,
     updated_at: new Date().toISOString().slice(0, 10),
   }
 
@@ -140,4 +143,36 @@ export function saveLeftoverRecord(date, mealType, { preparedCount, leftoverCoun
 // 16장: 전체 기록을 지우지 않고 잔반 관련 값만 비운다(actualCount 등은 그대로 보존).
 export function clearLeftoverRecord(date, mealType) {
   return saveLeftoverRecord(date, mealType, { preparedCount: null, leftoverCount: null, wasteCount: null })
+}
+
+// STEP 4-6: 추천 준비량(plannedPreparationCount, 계획값)은 실적값인 preparedCount와
+// 절대 같은 필드로 취급하지 않는다(17장) — 사용자가 [추천 준비량 적용]을 눌렀을 때만
+// 이 함수가 호출되고, 그 외 필드(expectedCount/actualCount/menuIds/preparedCount/
+// leftoverCount/wasteCount)는 모두 그대로 보존한다.
+export function savePlannedPreparationCount(date, mealType, plannedPreparationCount) {
+  const parsed = parseNullableNonNegative(plannedPreparationCount)
+  if (!parsed.ok) {
+    return { ok: false, reason: '계획 준비량은 0 이상의 숫자만 입력할 수 있습니다.' }
+  }
+
+  const records = loadDatabase()
+  const key = recordKey(date, mealType)
+  const existingIndex = records.findIndex((r) => recordKey(r.date, r.mealType) === key)
+  const existing = existingIndex >= 0 ? records[existingIndex] : null
+  const nextRecord = {
+    date,
+    mealType,
+    expectedCount: Number(existing?.expectedCount) || 0,
+    actualCount: typeof existing?.actualCount === 'number' ? existing.actualCount : null,
+    menuIds: Array.isArray(existing?.menuIds) ? existing.menuIds : [],
+    preparedCount: typeof existing?.preparedCount === 'number' ? existing.preparedCount : null,
+    leftoverCount: typeof existing?.leftoverCount === 'number' ? existing.leftoverCount : null,
+    wasteCount: typeof existing?.wasteCount === 'number' ? existing.wasteCount : null,
+    plannedPreparationCount: parsed.value,
+    updated_at: new Date().toISOString().slice(0, 10),
+  }
+
+  const next = existingIndex >= 0 ? records.map((r, i) => (i === existingIndex ? nextRecord : r)) : [...records, nextRecord]
+  saveToStorage(next)
+  return { ok: true, record: nextRecord }
 }
