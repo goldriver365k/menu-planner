@@ -5,6 +5,7 @@ import { buildMealSlotRoles, buildSlotKey } from '../logic/menuSlots'
 import EditableMealDetail from './EditableMealDetail'
 import MealCostSummary from './MealCostSummary'
 import NutritionSummary from './NutritionSummary'
+import MealCountRecord from './MealCountRecord'
 
 function cellSummary(result) {
   if (!result) return null
@@ -152,6 +153,15 @@ export default function WeeklyMenuResult({
                 (role) => !lockedSlotKeys.has(buildSlotKey(selected.day, selected.mealType, role))
               )}
               onAdjust={() => onAdjustCost(selected.day, selected.mealType)}
+            />
+          </div>
+          <div className="mt-3">
+            <MealCountRecord
+              key={`${selected.day}:${selected.mealType}`}
+              date={selectedDate}
+              mealType={selected.mealType}
+              expectedCount={mealsSettings[selected.mealType]?.expectedCount}
+              mealResult={selectedResult}
             />
           </div>
         </div>
