@@ -59,6 +59,9 @@ function RecordRow({ record, onChanged }) {
           <span className="text-slate-400">미입력</span>
         )}
       </td>
+      <td className="px-3 py-2 tabular-nums text-slate-500">{record.preparedCount != null ? `${record.preparedCount}인분` : '—'}</td>
+      <td className="px-3 py-2 tabular-nums text-slate-500">{record.leftoverCount != null ? `${record.leftoverCount}인분` : '—'}</td>
+      <td className="px-3 py-2 tabular-nums text-slate-500">{record.wasteCount != null ? `${record.wasteCount}인분` : '—'}</td>
       <td className="px-3 py-2">
         <div className="flex justify-end gap-1">
           {editing ? (
@@ -268,13 +271,16 @@ export default function MealCountStatsManagement() {
           기록 목록 (최근 {recentRecords.length}건)
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+          <table className="w-full min-w-[760px] border-collapse text-sm">
             <thead>
               <tr className="text-left text-xs font-medium text-slate-500">
                 <th className="px-3 py-2">날짜</th>
                 <th className="px-3 py-2">끼니</th>
                 <th className="px-3 py-2">예상</th>
                 <th className="px-3 py-2">실제</th>
+                <th className="px-3 py-2">준비</th>
+                <th className="px-3 py-2">남음</th>
+                <th className="px-3 py-2">폐기</th>
                 <th className="px-3 py-2 text-right">작업</th>
               </tr>
             </thead>
@@ -284,7 +290,7 @@ export default function MealCountStatsManagement() {
               ))}
               {recentRecords.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-400">
+                  <td colSpan={8} className="px-3 py-8 text-center text-sm text-slate-400">
                     아직 저장된 식수 기록이 없습니다. "주간 식단 결과"에서 실제 식수를 입력하세요.
                   </td>
                 </tr>

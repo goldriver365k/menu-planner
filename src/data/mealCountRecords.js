@@ -53,12 +53,18 @@ export function saveActualMealCount(date, mealType, { expectedCount, actualCount
   const records = loadDatabase()
   const key = recordKey(date, mealType)
   const existingIndex = records.findIndex((r) => recordKey(r.date, r.mealType) === key)
+  const existing = existingIndex >= 0 ? records[existingIndex] : null
   const nextRecord = {
     date,
     mealType,
     expectedCount: Number(expectedCount) || 0,
     actualCount: parsedActual,
     menuIds: Array.isArray(menuIds) ? menuIds : [],
+    // STEP 4-5: 잔반/폐기 필드는 이 함수가 다루지 않는다 — 기존 값을 그대로 보존해야
+    // "실제 식수"만 다시 저장해도 이미 기록해 둔 준비량/남은 음식/폐기량이 지워지지 않는다.
+    preparedCount: existing?.preparedCount ?? null,
+    leftoverCount: existing?.leftoverCount ?? null,
+    wasteCount: existing?.wasteCount ?? null,
     updated_at: new Date().toISOString().slice(0, 10),
   }
 
@@ -86,4 +92,52 @@ export function deleteMealCountRecord(date, mealType) {
   const next = records.filter((r) => recordKey(r.date, r.mealType) !== key)
   saveToStorage(next)
   return next
+}
+
+// 0(실제로 없음)과 미입력(null, 기록하지 않음)을 구분한다 — 빈 문자열/undefined/null은
+// null로, 그 외는 숫자로 검사한다. 음수·숫자아님이면 { ok: false }.
+function parseNullableNonNegative(value) {
+  if (value === '' || value == null) return { ok: true, value: null }
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return { ok: false, value: null }
+  return { ok: true, value: n }
+}
+
+// STEP 4-5: 잔반/폐기 기록 — 같은 날짜+끼니의 기존 4-1 레코드를 확장한다(새 LocalStorage
+// key를 만들지 않는다). preparedCount/leftoverCount/wasteCount는 모두 선택값이며, 서로
+// 독립적으로 null을 허용한다(leftoverCount를 안다고 wasteCount를 자동으로 만들어내지
+// 않는다). expectedCount/actualCount/menuIds는 기존 값을 그대로 보존한다 — 이 함수는
+// 잔반 관련 필드만 바꾼다.
+export function saveLeftoverRecord(date, mealType, { preparedCount, leftoverCount, wasteCount }) {
+  const prepared = parseNullableNonNegative(preparedCount)
+  const leftover = parseNullableNonNegative(leftoverCount)
+  const waste = parseNullableNonNegative(wasteCount)
+  if (!prepared.ok || !leftover.ok || !waste.ok) {
+    return { ok: false, reason: '준비량/남은 음식/폐기는 0 이상의 숫자만 입력할 수 있습니다.' }
+  }
+
+  const records = loadDatabase()
+  const key = recordKey(date, mealType)
+  const existingIndex = records.findIndex((r) => recordKey(r.date, r.mealType) === key)
+  const existing = existingIndex >= 0 ? records[existingIndex] : null
+  const nextRecord = {
+    date,
+    mealType,
+    expectedCount: Number(existing?.expectedCount) || 0,
+    actualCount: typeof existing?.actualCount === 'number' ? existing.actualCount : null,
+    menuIds: Array.isArray(existing?.menuIds) ? existing.menuIds : [],
+    preparedCount: prepared.value,
+    leftoverCount: leftover.value,
+    wasteCount: waste.value,
+    updated_at: new Date().toISOString().slice(0, 10),
+  }
+
+  const next = existingIndex >= 0 ? records.map((r, i) => (i === existingIndex ? nextRecord : r)) : [...records, nextRecord]
+  saveToStorage(next)
+  return { ok: true, record: nextRecord }
+}
+
+// 16장: 전체 기록을 지우지 않고 잔반 관련 값만 비운다(actualCount 등은 그대로 보존).
+export function clearLeftoverRecord(date, mealType) {
+  return saveLeftoverRecord(date, mealType, { preparedCount: null, leftoverCount: null, wasteCount: null })
 }
