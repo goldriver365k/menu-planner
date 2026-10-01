@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# 환경변수(STEP 14: VITE_NEIS_API_KEY 등 서비스키) — .env.example만 커밋한다.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

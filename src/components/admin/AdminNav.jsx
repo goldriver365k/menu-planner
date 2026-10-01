@@ -1,6 +1,8 @@
 const SECTIONS = [
   { key: 'dashboard', label: '대시보드' },
   { key: 'menus', label: '메뉴 관리' },
+  { key: 'neisImport', label: '급식 메뉴 가져오기' },
+  { key: 'unclassified', label: '미분류 메뉴' },
   { key: 'ingredients', label: '식재료 관리' },
   { key: 'weekly', label: '주간 식단' },
   { key: 'history', label: '사용 이력' },
