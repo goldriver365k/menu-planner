@@ -49,6 +49,14 @@ export default function PlannerPage({ onOpenAdmin }) {
     }))
   }
 
+  // 4-4: [추천값 적용]을 눌렀을 때만 호출된다 — 추천 계산 자체는 기존 expectedCount를
+  // 건드리지 않고, 이 함수가 실행돼야 비로소 updateMeal(기존 MealCard와 동일한 경로)로
+  // expectedCount가 바뀐다. 그 이후 원가 계산/식재료 필요량/발주량은 기존 흐름 그대로
+  // 이 값을 읽어간다.
+  const handleApplyRecommendedCount = (mealType, recommendedCount) => {
+    updateMeal(mealType, { ...settings.meals[mealType], expectedCount: String(recommendedCount) })
+  }
+
   const hasOperatingDay = Object.values(settings.operatingDays).some(Boolean)
   const hasActiveMeal = MEAL_TYPES.some((m) => settings.meals[m]?.isActive)
   const canGenerateWeek = hasOperatingDay && hasActiveMeal && Boolean(settings.weekStartDate)
@@ -243,6 +251,7 @@ export default function PlannerPage({ onOpenAdmin }) {
               onToggleLock={handleToggleLock}
               onReplace={handleReplace}
               onAdjustCost={handleAdjustCost}
+              onApplyRecommendedCount={handleApplyRecommendedCount}
             />
             <WeeklyIngredientRequirement
               weekMenu={weekMenu}

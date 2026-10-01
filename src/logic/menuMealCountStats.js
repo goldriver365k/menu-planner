@@ -37,7 +37,9 @@ function withValidActualCount(records) {
 }
 
 // records를 "최근 N주"(weeks)로 제한한다. weeks가 null/undefined면 전체기간을 그대로 쓴다.
-function filterByPeriod(records, weeks, referenceDateISO) {
+// 4-4(mealCountRecommendation.js)에서도 같은 기간 필터링이 필요해 export한다(재사용,
+// 동일 로직 재작성 방지).
+export function filterByPeriod(records, weeks, referenceDateISO) {
   if (!weeks) return records
   const reference = referenceDateISO || new Date().toISOString().slice(0, 10)
   const windowDays = weeks * 7

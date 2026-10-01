@@ -6,6 +6,7 @@ import EditableMealDetail from './EditableMealDetail'
 import MealCostSummary from './MealCostSummary'
 import NutritionSummary from './NutritionSummary'
 import MealCountRecord from './MealCountRecord'
+import MealCountRecommendation from './MealCountRecommendation'
 
 function cellSummary(result) {
   if (!result) return null
@@ -29,6 +30,7 @@ export default function WeeklyMenuResult({
   onToggleLock,
   onReplace,
   onAdjustCost,
+  onApplyRecommendedCount,
 }) {
   const [selected, setSelected] = useState(null) // { day, mealType }
 
@@ -162,6 +164,16 @@ export default function WeeklyMenuResult({
               mealType={selected.mealType}
               expectedCount={mealsSettings[selected.mealType]?.expectedCount}
               mealResult={selectedResult}
+            />
+          </div>
+          <div className="mt-3">
+            <MealCountRecommendation
+              key={`rec:${selected.day}:${selected.mealType}`}
+              day={selected.day}
+              mealType={selected.mealType}
+              currentExpectedCount={mealsSettings[selected.mealType]?.expectedCount}
+              mealResult={selectedResult}
+              onApply={onApplyRecommendedCount}
             />
           </div>
         </div>
