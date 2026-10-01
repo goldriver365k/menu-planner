@@ -9,6 +9,7 @@ import {
   getRecentRecords,
 } from '../../logic/mealCountStats'
 import { DAYS, DAY_LABELS, MEAL_TYPES, MEAL_LABELS } from '../../data/planConfig'
+import MenuMealCountAnalysis from './MenuMealCountAnalysis'
 
 function fmtAvg(average) {
   return average == null ? '-' : `${average.toFixed(1)}명`
@@ -107,6 +108,7 @@ function RecordRow({ record, onChanged }) {
 // STEP 4-2: 4-1에서 쌓인 예상/실제 식수 기록을 집계만 한다(AI/예측/그래프 없음).
 export default function MealCountStatsManagement() {
   const [records, setRecords] = useState(() => getAllMealCountRecords())
+  const [tab, setTab] = useState('overview') // 'overview' | 'byMenu'
   const refresh = () => setRecords(getAllMealCountRecords())
 
   const weekdayMealTable = getWeekdayMealTable(records)
@@ -128,6 +130,33 @@ export default function MealCountStatsManagement() {
         </p>
       </div>
 
+      <div className="mb-4 flex gap-1 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => setTab('overview')}
+          className={[
+            'rounded-t-lg px-4 py-2 text-sm font-semibold',
+            tab === 'overview' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600',
+          ].join(' ')}
+        >
+          요일·끼니 통계
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('byMenu')}
+          className={[
+            'rounded-t-lg px-4 py-2 text-sm font-semibold',
+            tab === 'byMenu' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600',
+          ].join(' ')}
+        >
+          메뉴별 분석
+        </button>
+      </div>
+
+      {tab === 'byMenu' ? (
+        <MenuMealCountAnalysis />
+      ) : (
+        <>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <span className="block text-xs text-slate-400">전체 평균</span>
@@ -264,6 +293,8 @@ export default function MealCountStatsManagement() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }

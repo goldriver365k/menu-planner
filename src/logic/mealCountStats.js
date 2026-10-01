@@ -6,7 +6,9 @@
 import { DAYS, MEAL_TYPES } from '../data/planConfig'
 import { diffDays } from '../data/menuHistory'
 
-function weekdayOfDate(dateISO) {
+// STEP 4-3(menuMealCountStats.js)에서도 날짜→요일 변환이 그대로 필요해 export한다
+// (요일 계산 방식을 이 파일 하나로 유지하기 위해 — 중복 구현하지 않는다).
+export function weekdayOfDate(dateISO) {
   if (typeof dateISO !== 'string') return null
   const date = new Date(`${dateISO}T00:00:00`)
   if (Number.isNaN(date.getTime())) return null
