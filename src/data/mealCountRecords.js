@@ -66,3 +66,24 @@ export function saveActualMealCount(date, mealType, { expectedCount, actualCount
   saveToStorage(next)
   return { ok: true, record: nextRecord }
 }
+
+// STEP 4-2: 통계 화면("식수 통계")에서 잘못 입력된 실제 식수를 고치는 수정 기능.
+// 같은 유효성 검사(음수/숫자아님 거부)를 타도록 saveActualMealCount를 그대로 재사용하고,
+// 그 기록의 expectedCount/menuIds는 그대로 유지한다(이 화면은 실제 식수만 고친다).
+export function updateMealCountActual(date, mealType, actualCount) {
+  const existing = getMealCountRecord(date, mealType)
+  if (!existing) return { ok: false, reason: '기록을 찾을 수 없습니다.' }
+  return saveActualMealCount(date, mealType, {
+    expectedCount: existing.expectedCount,
+    actualCount,
+    menuIds: existing.menuIds,
+  })
+}
+
+export function deleteMealCountRecord(date, mealType) {
+  const records = loadDatabase()
+  const key = recordKey(date, mealType)
+  const next = records.filter((r) => recordKey(r.date, r.mealType) !== key)
+  saveToStorage(next)
+  return next
+}
