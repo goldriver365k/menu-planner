@@ -4,21 +4,62 @@ import {
   addIngredientMaster,
   updateIngredientMaster,
   setIngredientMasterActive,
+  setCurrentStock,
 } from '../../data/ingredientMasterDatabase'
 import { INGREDIENT_MASTER_CATEGORIES, INGREDIENT_MASTER_CATEGORY_LABELS } from '../../data/ingredientMasterTaxonomy'
 import IngredientMasterFormModal from './IngredientMasterFormModal'
 import KamisReferencePriceUpdate from './KamisReferencePriceUpdate'
 
-// kamis_reference_* 필드는 setKamisReferencePrice()(KamisReferencePriceUpdate.jsx)로만
-// 기록된다 — 이 일반 수정/추가 폼이 들고 있는 값을 그대로 저장소에 반영해버리면 "KAMIS는
-// 관리자가 [참고가격 업데이트]를 실행할 때만 반영된다"는 원칙이 깨질 수 있어, 여기서
-// 구조적으로 제외한다.
+// kamis_reference_*/current_stock 관련 필드는 각각 전용 setter(setKamisReferencePrice/
+// setCurrentStock)로만 기록된다 — 이 일반 수정/추가 폼이 들고 있는 값을 그대로 저장소에
+// 반영해버리면 전용 흐름 밖에서 값이 바뀔 수 있어, 여기서 구조적으로 제외한다.
 function stripKamisReferenceFields(formData) {
   const next = { ...formData }
   delete next.kamis_reference_price
   delete next.kamis_reference_unit
   delete next.kamis_updated_at
+  delete next.current_stock
+  delete next.stock_updated_at
   return next
+}
+
+// STEP 5-3: 현재 재고 입력 — 식재료 목록 행 안에서 작은 입력란 하나로 처리한다(별도
+// 대형 화면 없음). 0(재고 없음)과 미입력(null, 재고 미확인)을 구분한다.
+function StockCell({ ingredient, onSaved }) {
+  const [input, setInput] = useState(() => (ingredient.current_stock != null ? String(ingredient.current_stock) : ''))
+  const [error, setError] = useState('')
+
+  const handleSave = () => {
+    const res = setCurrentStock(ingredient.id, input)
+    if (!res.ok) {
+      setError(res.reason)
+      return
+    }
+    setError('')
+    onSaved()
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number"
+        min="0"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="미확인"
+        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-xs outline-none focus:border-blue-500"
+      />
+      <span className="text-xs text-slate-400">{ingredient.purchase_unit}</span>
+      <button
+        type="button"
+        onClick={handleSave}
+        className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+      >
+        저장
+      </button>
+      {error && <span className="text-[11px] text-rose-600">{error}</span>}
+    </div>
+  )
 }
 
 // 향후 레시피·원가 계산에 쓸 식재료 마스터 DB의 최소 관리 화면 — 추가/수정/비활성화/검색만
@@ -106,6 +147,7 @@ export default function IngredientMasterManagement() {
               <th className="px-3 py-2.5">분류</th>
               <th className="px-3 py-2.5">구매가</th>
               <th className="px-3 py-2.5">참고가격(KAMIS)</th>
+              <th className="px-3 py-2.5">현재 재고</th>
               <th className="px-3 py-2.5">수율</th>
               <th className="px-3 py-2.5">출처 / 갱신일</th>
               <th className="px-3 py-2.5">상태</th>
@@ -135,6 +177,16 @@ export default function IngredientMasterManagement() {
                       '조회 전'
                     ) : (
                       '—'
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <StockCell ingredient={ingredient} onSaved={refresh} />
+                    {ingredient.current_stock == null ? (
+                      <span className="mt-0.5 block text-[11px] text-amber-600">재고 미확인</span>
+                    ) : (
+                      ingredient.stock_updated_at && (
+                        <span className="mt-0.5 block text-[11px] text-slate-400">재고 확인: {ingredient.stock_updated_at}</span>
+                      )
                     )}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-700">{ingredient.usable_yield}%</td>
@@ -176,7 +228,7 @@ export default function IngredientMasterManagement() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-sm text-slate-400">
+                <td colSpan={10} className="px-3 py-8 text-center text-sm text-slate-400">
                   {ingredients.length === 0 ? '등록된 식재료가 없습니다. "새 식재료 추가"로 시작하세요.' : '조건에 맞는 식재료가 없습니다.'}
                 </td>
               </tr>

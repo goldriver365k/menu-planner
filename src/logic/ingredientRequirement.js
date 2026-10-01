@@ -99,6 +99,24 @@ function calcPackInfo(ingredient, family, baseQuantity) {
   return { packCount, packSize: packQty, packUnit: ingredient.purchase_unit }
 }
 
+// STEP 5-3: 수율 적용 후 필요량(actualBase, 이미 날짜/주간 단위로 한 번만 합산된 값)에서
+// 현재 재고를 차감해 "실제 구매 필요량"을 만든다 — 반드시 포장단위 올림보다 먼저 계산한다.
+// 재고는 그 식재료의 purchase_unit 기준으로 저장돼 있으므로, 필요량과 같은 단위 계열일
+// 때만 변환해서 차감한다. 재고가 미확인(null)이거나 단위 계열이 다르면 차감하지 않고
+// 그 사실을 status로 알려 화면에서 확정된 값처럼 보이지 않게 한다(11장).
+function applyStockDeduction(ingredient, family, actualBase) {
+  if (!ingredient || ingredient.current_stock == null) {
+    return { purchaseNeededBase: actualBase, stockBase: null, status: 'UNCONFIRMED' }
+  }
+  if (unitFamily(ingredient.purchase_unit) !== family) {
+    return { purchaseNeededBase: actualBase, stockBase: null, status: 'UNIT_MISMATCH' }
+  }
+  const stockBase = toBaseQuantity(Number(ingredient.current_stock) || 0, ingredient.purchase_unit)
+  // 7장: 재고가 필요량보다 많아도 음수로 표시하지 않는다.
+  const purchaseNeededBase = Math.max(0, actualBase - stockBase)
+  return { purchaseNeededBase, stockBase, status: 'OK' }
+}
+
 function bucketToRows(bucket) {
   return Object.values(bucket)
     .map((entry) => {
@@ -213,7 +231,16 @@ function bucketToOrderRows(bucket, date) {
       const ingredient = getIngredientMasterById(entry.ingredientId)
       const netDisplay = formatBaseQuantity(entry.netBase, entry.family, entry.countUnit)
       const actualDisplay = formatBaseQuantity(entry.actualBase, entry.family, entry.countUnit)
-      const order = buildOrderFields(ingredient, entry.family, entry.actualBase, actualDisplay)
+
+      // 5-3: 재고 차감은 이미 날짜/주간 단위로 한 번만 합산된 entry.actualBase에 대해
+      // 딱 한 번만 적용한다(같은 식재료를 날짜별로 반복 차감하지 않음) — 그 다음에야
+      // 포장단위 올림(buildOrderFields 내부)을 계산한다.
+      const stock = applyStockDeduction(ingredient, entry.family, entry.actualBase)
+      const currentStockDisplay =
+        stock.stockBase != null ? formatBaseQuantity(stock.stockBase, entry.family, entry.countUnit) : null
+      const purchaseNeededDisplay = formatBaseQuantity(stock.purchaseNeededBase, entry.family, entry.countUnit)
+
+      const order = buildOrderFields(ingredient, entry.family, stock.purchaseNeededBase, purchaseNeededDisplay)
 
       return {
         date,
@@ -221,6 +248,9 @@ function bucketToOrderRows(bucket, date) {
         name: entry.name,
         requiredQuantity: netDisplay, // 필요량(수율 반영 전)
         actualQuantity: actualDisplay, // 수율반영 필요량
+        currentStock: currentStockDisplay, // 현재 재고(필요량과 같은 단위로 환산), 미확인/단위불일치면 null
+        stockStatus: stock.status, // 'OK' | 'UNCONFIRMED' | 'UNIT_MISMATCH'
+        purchaseNeeded: purchaseNeededDisplay, // 수율반영 필요량 - 현재 재고(음수 방지)
         ...order,
       }
     })

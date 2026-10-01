@@ -34,6 +34,20 @@ function OrderRow({ row }) {
         {row.actualQuantity.value}
         {row.actualQuantity.unit}
       </td>
+      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">
+        {row.stockStatus === 'OK' && row.currentStock ? (
+          `${row.currentStock.value}${row.currentStock.unit}`
+        ) : row.stockStatus === 'UNIT_MISMATCH' ? (
+          <span className="text-amber-600">단위 확인 필요</span>
+        ) : (
+          <span className="text-amber-600">재고 미확인</span>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-700">
+        {row.purchaseNeeded.value}
+        {row.purchaseNeeded.unit}
+        {row.stockStatus !== 'OK' && <span className="ml-1 text-[11px] font-medium text-amber-600">(재고 미반영)</span>}
+      </td>
       <td className="px-3 py-2 text-slate-500">{row.orderUnit}</td>
       <td className="px-3 py-2 tabular-nums font-medium text-slate-900">{row.orderQuantity}</td>
       <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">
@@ -92,11 +106,24 @@ function ProcurementBasisNote({ date, mealsSettings, rows }) {
   )
 }
 
+// STEP 5-3(12장): 재고가 미확인이거나 단위를 확인할 수 없는 식재료가 있으면 상단에
+// 어떤 식재료인지 알 수 있게 안내한다.
+function StockWarningBanner({ rows }) {
+  const unconfirmed = rows.filter((r) => r.stockStatus !== 'OK')
+  if (unconfirmed.length === 0) return null
+  return (
+    <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 print:hidden">
+      재고 미확인 식재료가 있습니다: {unconfirmed.map((r) => r.name).join(', ')}
+    </p>
+  )
+}
+
 function OrderTable({ rows, title }) {
   const totalAmount = rows.reduce((sum, r) => sum + (r.expectedAmount || 0), 0)
   return (
     <div>
       <p className="mb-2 hidden text-base font-semibold text-slate-900 print:block">{title}</p>
+      <StockWarningBanner rows={rows} />
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-slate-400">표준 레시피가 등록된 메뉴가 없어 발주할 식재료가 없습니다.</p>
       ) : (
@@ -108,6 +135,8 @@ function OrderTable({ rows, title }) {
                 <th className="px-3 py-2">식재료</th>
                 <th className="px-3 py-2">필요량</th>
                 <th className="px-3 py-2">수율반영 필요량</th>
+                <th className="px-3 py-2">현재재고</th>
+                <th className="px-3 py-2">구매필요</th>
                 <th className="px-3 py-2">발주단위</th>
                 <th className="px-3 py-2">발주수량</th>
                 <th className="px-3 py-2">단가</th>
@@ -123,7 +152,7 @@ function OrderTable({ rows, title }) {
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                <td className="px-3 py-2.5 text-slate-700" colSpan={7}>
+                <td className="px-3 py-2.5 text-slate-700" colSpan={9}>
                   예상 발주 총액
                 </td>
                 <td className="px-3 py-2.5 tabular-nums text-slate-900" colSpan={2}>

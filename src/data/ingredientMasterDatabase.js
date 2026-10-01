@@ -76,6 +76,11 @@ function buildIngredientMasterRecord(id, data) {
     kamis_reference_price: data.kamis_reference_price ?? null,
     kamis_reference_unit: data.kamis_reference_unit || '',
     kamis_updated_at: data.kamis_updated_at || null,
+    // STEP 5-3: 현재 재고 — 0(재고 없음)과 null(재고 미확인)을 구분한다. 단위는 이
+    // 식재료의 purchase_unit을 그대로 쓴다(별도 재고 단위를 두지 않음). setCurrentStock()
+    // 전용 setter로만 기록되며, 일반 수정 폼에서는 그대로 보존만 한다.
+    current_stock: data.current_stock ?? null,
+    stock_updated_at: data.stock_updated_at || null,
   }
 }
 
@@ -100,6 +105,11 @@ function mergeIngredientMasterPatch(existing, patch) {
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'usable_yield')) {
     merged.usable_yield = patch.usable_yield === '' || patch.usable_yield == null ? 100 : Number(patch.usable_yield) || 0
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'current_stock')) {
+    const raw = patch.current_stock
+    const parsed = raw === '' || raw == null ? null : Number(raw)
+    merged.current_stock = parsed == null || (Number.isFinite(parsed) && parsed >= 0) ? parsed : existing.current_stock
   }
   return merged
 }
@@ -126,4 +136,19 @@ export function setKamisReferencePrice(id, { price, unit, updatedAt } = {}) {
     kamis_reference_unit: unit || '',
     kamis_updated_at: updatedAt || new Date().toISOString().slice(0, 10),
   })
+}
+
+// STEP 5-3: 현재 재고 전용 setter. 빈 값/null은 "재고 미확인"으로 그대로 null 저장하고,
+// 숫자(0 포함)만 유효성 검사를 거쳐 저장한다. 음수·숫자아님이면 { ok: false }를 돌려주고
+// 기존 값을 건드리지 않는다.
+export function setCurrentStock(id, currentStock) {
+  const value = currentStock === '' || currentStock == null ? null : Number(currentStock)
+  if (value != null && (!Number.isFinite(value) || value < 0)) {
+    return { ok: false, reason: '현재 재고는 0 이상의 숫자만 입력할 수 있습니다.' }
+  }
+  const updated = updateIngredientMaster(id, {
+    current_stock: value,
+    stock_updated_at: new Date().toISOString().slice(0, 10),
+  })
+  return { ok: true, record: updated }
 }
