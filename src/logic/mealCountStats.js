@@ -4,7 +4,7 @@
 // 해당 레코드만 집계에서 제외한다.
 
 import { DAYS, MEAL_TYPES } from '../data/planConfig'
-import { diffDays } from '../data/menuHistory'
+import { diffDays, todayISO } from '../data/menuHistory'
 
 // STEP 4-3(menuMealCountStats.js)에서도 날짜→요일 변환이 그대로 필요해 export한다
 // (요일 계산 방식을 이 파일 하나로 유지하기 위해 — 중복 구현하지 않는다).
@@ -76,7 +76,7 @@ export function getRecentAverage(records, weeks = 4, referenceDateISO = null) {
   const valid = withValidActualCount(records)
   if (valid.length === 0) return { average: null, count: 0 }
 
-  const reference = referenceDateISO || new Date().toISOString().slice(0, 10)
+  const reference = referenceDateISO || todayISO()
   const windowDays = weeks * 7
   const recent = valid.filter((r) => {
     const diff = diffDays(r.date, reference) // reference - r.date

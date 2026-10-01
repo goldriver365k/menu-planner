@@ -23,10 +23,26 @@ export function diffDays(dateA, dateB) {
   return Math.round((b - a) / (1000 * 60 * 60 * 24))
 }
 
+// 5-1 점검에서 발견: Date 객체를 로컬 날짜 기준 YYYY-MM-DD로 변환한다.
+// toISOString()은 UTC로 변환하므로, UTC보다 시간대가 빠른 지역(한국 UTC+9 등)에서는
+// 로컬 자정에 만든 날짜가 전날로 밀린다 — 로컬 날짜 구성요소를 직접 읽어 그 문제를 피한다.
+function toLocalISODate(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export function addDaysISO(dateISO, days) {
   const date = new Date(`${dateISO}T00:00:00`)
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  return toLocalISODate(date)
+}
+
+// 로컬 기준 "오늘"을 YYYY-MM-DD로. mealCountStats.js/menuMealCountStats.js의 "최근 N주"
+// 기준일 기본값 등에서 재사용한다(같은 로직을 다시 구현하지 않는다).
+export function todayISO() {
+  return toLocalISODate(new Date())
 }
 
 // referenceDate 기준으로 사용 이력이 아직 14일 제한 안에 있어 추천이 금지된 상태인지.

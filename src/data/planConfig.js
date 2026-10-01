@@ -37,12 +37,19 @@ export const DEFAULT_TARGET_COST_RATE = 35
 
 // 다가오는 월요일 날짜(YYYY-MM-DD)를 계산한다.
 // 14일 중복 검사(STEP 5)는 실제 날짜가 있어야 하므로, 주간 시작일의 기본값으로 사용한다.
+//
+// 5-1 점검에서 발견: 마지막에 toISOString()으로 변환하면 UTC보다 시간대가 빠른 지역
+// (한국 UTC+9 등)에서 날짜가 하루 당겨질 수 있어(로컬 자정 → UTC로는 전날), 로컬 날짜
+// 구성요소를 직접 읽어 문자열을 만든다.
 export function getNextMondayISO(from = new Date()) {
   const date = new Date(from)
   const day = date.getDay() // 0=일 ... 1=월
   const diff = day === 1 ? 0 : ((8 - day) % 7 || 7)
   date.setDate(date.getDate() + diff)
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 // 끼니 하나의 기본 입력값

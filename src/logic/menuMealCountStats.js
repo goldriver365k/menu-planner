@@ -7,7 +7,7 @@
 // "증가시켰다"고 단정하지 않는다 — 화면에는 항상 "기준 대비 차이"로만 표시한다.
 
 import { getAverageByWeekdayAndMeal, weekdayOfDate } from './mealCountStats'
-import { diffDays } from '../data/menuHistory'
+import { diffDays, todayISO } from '../data/menuHistory'
 import { getMenuById } from '../data/menuDatabase'
 
 // 표본 수 판단 기준 — 나중에 쉽게 바꿀 수 있도록 상수로 분리한다.
@@ -41,7 +41,7 @@ function withValidActualCount(records) {
 // 동일 로직 재작성 방지).
 export function filterByPeriod(records, weeks, referenceDateISO) {
   if (!weeks) return records
-  const reference = referenceDateISO || new Date().toISOString().slice(0, 10)
+  const reference = referenceDateISO || todayISO()
   const windowDays = weeks * 7
   return records.filter((r) => {
     const diff = diffDays(r.date, reference) // reference - r.date

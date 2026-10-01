@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
-import { pruneHistory, addDaysISO } from '../data/menuHistory'
+import { pruneHistory, addDaysISO, todayISO } from '../data/menuHistory'
 
 const STORAGE_KEY = 'menu-planner:menu-history:v1'
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function loadInitial() {
   try {
