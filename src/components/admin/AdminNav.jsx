@@ -5,6 +5,7 @@ const SECTIONS = [
   { key: 'unclassified', label: '미분류 메뉴' },
   { key: 'ingredients', label: '식재료 관리' },
   { key: 'ingredientMaster', label: '식재료 마스터 DB' },
+  { key: 'standardRecipe', label: '표준 레시피' },
   { key: 'weekly', label: '주간 식단' },
   { key: 'history', label: '사용 이력' },
   { key: 'settings', label: '설정' },

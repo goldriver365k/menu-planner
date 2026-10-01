@@ -5,6 +5,7 @@ import NeisImportPanel from '../components/admin/NeisImportPanel'
 import UnclassifiedMenuPanel from '../components/admin/UnclassifiedMenuPanel'
 import IngredientManagement from '../components/admin/IngredientManagement'
 import IngredientMasterManagement from '../components/admin/IngredientMasterManagement'
+import StandardRecipeManagement from '../components/admin/StandardRecipeManagement'
 import SettingsSection from '../components/admin/SettingsSection'
 import PlaceholderSection from '../components/admin/PlaceholderSection'
 
@@ -46,8 +47,9 @@ export default function AdminPage({ onBack }) {
             {section === 'unclassified' && <UnclassifiedMenuPanel />}
             {section === 'ingredients' && <IngredientManagement />}
             {section === 'ingredientMaster' && <IngredientMasterManagement />}
+            {section === 'standardRecipe' && <StandardRecipeManagement />}
             {section === 'settings' && <SettingsSection />}
-            {!['menus', 'neisImport', 'unclassified', 'ingredients', 'ingredientMaster', 'settings'].includes(section) && (
+            {!['menus', 'neisImport', 'unclassified', 'ingredients', 'ingredientMaster', 'standardRecipe', 'settings'].includes(section) && (
               <PlaceholderSection title={TITLES[section]} />
             )}
           </div>
