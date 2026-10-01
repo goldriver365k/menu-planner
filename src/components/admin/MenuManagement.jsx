@@ -109,13 +109,27 @@ export default function MenuManagement() {
               return (
                 <tr key={menu.id} className="border-t border-slate-100">
                   <td className="px-3 py-2.5 font-mono text-xs text-slate-400">{menu.id}</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-800">{menu.name}</td>
+                  <td className="px-3 py-2.5 font-medium text-slate-800">
+                    {menu.name}
+                    {menu.source === 'NEIS' && (
+                      <span className="ml-1.5 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600">
+                        NEIS
+                      </span>
+                    )}
+                    {menu.possibleDuplicate && (
+                      <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                        중복 의심
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 text-slate-500">
-                    {CATEGORY_LABELS[menu.category]}
+                    {CATEGORY_LABELS[menu.category] || menu.category}
                     {menu.subcategory ? ` · ${menu.subcategory}` : ''}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-700">
-                    {menu.cost_per_serving.toLocaleString('ko-KR')}원
+                    {menu.cost_per_serving == null
+                      ? <span className="text-slate-400">원가 미등록</span>
+                      : `${menu.cost_per_serving.toLocaleString('ko-KR')}원`}
                   </td>
                   <td className="px-3 py-2.5">
                     <span

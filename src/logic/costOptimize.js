@@ -72,18 +72,23 @@ export function adjustMealToTargetCost(mealResult, targetPerServingCost, lockedR
     const totalCost = calcMealReferenceCost(current)
     if (totalCost <= targetPerServingCost) break
 
+    // STEP 14: NEIS 메뉴는 cost_per_serving이 null(원가 미등록)일 수 있다 — null은 "비싼 순"
+    // 정렬에서는 0으로 취급해 가장 먼저 교체되지 않도록 뒤로 보낸다(작업지시서 15장 방어 처리).
     const swappable = roles
       .filter((role) => !lockedRoles.has(role) && !exhaustedRoles.has(role))
       .map((role) => ({ role, item: getItemAtRole(current, role) }))
-      .sort((a, b) => b.item.cost_per_serving - a.item.cost_per_serving)
+      .sort((a, b) => (b.item.cost_per_serving ?? 0) - (a.item.cost_per_serving ?? 0))
 
     if (swappable.length === 0) break // 더 조정할 수 있는 슬롯이 없음
 
     const { role, item: currentItem } = swappable[0]
     const pool = poolForReplacement(role, currentItem)
-    const cheaperOptions = pool
-      .filter((m) => m.id !== currentItem.id && m.cost_per_serving < currentItem.cost_per_serving)
-      .sort((a, b) => a.cost_per_serving - b.cost_per_serving)
+    // 현재 항목의 원가 자체를 모르면("미등록") 무엇이 더 싼지 판단할 수 없으므로 교체하지 않는다.
+    const cheaperOptions = currentItem.cost_per_serving == null
+      ? []
+      : pool
+          .filter((m) => m.id !== currentItem.id && m.cost_per_serving != null && m.cost_per_serving < currentItem.cost_per_serving)
+          .sort((a, b) => a.cost_per_serving - b.cost_per_serving)
 
     // 가능하면 14일 제외 목록에 없는 것 중 가장 저렴한 것을 우선 선택
     const preferred = cheaperOptions.find((m) => !excludedIds.has(m.id)) || cheaperOptions[0]

@@ -36,7 +36,12 @@ function emptyForm() {
 }
 
 export default function MenuFormModal({ menu, onSave, onClose }) {
-  const [form, setForm] = useState(() => (menu ? { ...menu } : emptyForm()))
+  // STEP 14: NEIS에서 가져온 메뉴는 cost_per_serving이 null(원가 미등록)일 수 있다 — 숫자 입력
+  // 칸에 null을 그대로 넣으면 React가 "uncontrolled → controlled" 경고를 내므로 빈 문자열로
+  // 바꿔 보여준다. 비워둔 채로 저장하면 menuDatabase.js가 다시 null(미등록)로 저장한다.
+  const [form, setForm] = useState(() =>
+    menu ? { ...menu, cost_per_serving: menu.cost_per_serving ?? '' } : emptyForm()
+  )
   const isEdit = Boolean(menu)
   const subOptions = subcategoryOptionsFor(form.category)
 
@@ -68,9 +73,23 @@ export default function MenuFormModal({ menu, onSave, onClose }) {
         onSubmit={handleSubmit}
         className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl sm:p-6"
       >
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">
+        <h2 className="mb-1 text-lg font-semibold text-slate-900">
           {isEdit ? '메뉴 수정' : '새 메뉴 추가'}
         </h2>
+        {isEdit && (menu.source === 'NEIS' || menu.possibleDuplicate) && (
+          <p className="mb-3 flex flex-wrap gap-1.5 text-xs text-slate-500">
+            {menu.source === 'NEIS' && (
+              <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-600">
+                NEIS 가져오기 · {menu.source_count ?? 1}개 식단에서 발견
+              </span>
+            )}
+            {menu.possibleDuplicate && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-600">
+                기존 메뉴와 유사할 수 있어요 — 중복이면 삭제하거나 이름을 통일해 주세요
+              </span>
+            )}
+          </p>
+        )}
 
         <div className="space-y-4">
           <label className="block">
@@ -144,10 +163,16 @@ export default function MenuFormModal({ menu, onSave, onClose }) {
               <input
                 type="number"
                 min="0"
+                placeholder="원가 미등록"
                 value={form.cost_per_serving}
                 onChange={(e) => update({ cost_per_serving: e.target.value })}
                 className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
+              {form.cost_per_serving === '' && (
+                <span className="mt-1 block text-xs text-slate-400">
+                  비워두면 "원가 미등록"으로 저장되며, 식단 생성 시 0원으로 집계됩니다.
+                </span>
+              )}
             </label>
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-slate-600">칼로리 (kcal)</span>

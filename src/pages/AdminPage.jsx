@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import AdminNav from '../components/admin/AdminNav'
 import MenuManagement from '../components/admin/MenuManagement'
+import NeisImportPanel from '../components/admin/NeisImportPanel'
+import UnclassifiedMenuPanel from '../components/admin/UnclassifiedMenuPanel'
 import IngredientManagement from '../components/admin/IngredientManagement'
 import SettingsSection from '../components/admin/SettingsSection'
 import PlaceholderSection from '../components/admin/PlaceholderSection'
@@ -39,9 +41,11 @@ export default function AdminPage({ onBack }) {
           <AdminNav active={section} onChange={setSection} />
           <div className="min-w-0 flex-1">
             {section === 'menus' && <MenuManagement />}
+            {section === 'neisImport' && <NeisImportPanel />}
+            {section === 'unclassified' && <UnclassifiedMenuPanel />}
             {section === 'ingredients' && <IngredientManagement />}
             {section === 'settings' && <SettingsSection />}
-            {section !== 'menus' && section !== 'ingredients' && section !== 'settings' && (
+            {!['menus', 'neisImport', 'unclassified', 'ingredients', 'settings'].includes(section) && (
               <PlaceholderSection title={TITLES[section]} />
             )}
           </div>

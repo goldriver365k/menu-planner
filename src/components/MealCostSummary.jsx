@@ -1,5 +1,5 @@
 import { calcMealFinancials } from '../logic/costOptimize'
-import { formatWon } from '../utils/mealCost'
+import { formatWon, mealHasUnverifiedCost } from '../utils/mealCost'
 
 function Stat({ label, value, emphasize = false, warn = false }) {
   return (
@@ -28,8 +28,15 @@ export default function MealCostSummary({ mealResult, mealSetting, costRatePerce
     )
   }
 
+  const hasUnverifiedCost = mealHasUnverifiedCost(mealResult)
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+      {hasUnverifiedCost && (
+        <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          ⚠ 원가 미등록 메뉴가 포함되어 있어 아래 원가는 실제보다 낮게 계산됐을 수 있습니다.
+        </p>
+      )}
       <div className="divide-y divide-slate-100">
         <Stat label="예상 식수" value={`${f.expectedCount.toLocaleString('ko-KR')}명`} />
         <Stat label="예상 매출" value={formatWon(f.expectedRevenue)} emphasize />
