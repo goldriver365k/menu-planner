@@ -12,11 +12,14 @@ function emptyForm() {
     usable_yield: '',
     price_source: '관리자 입력',
     active: true,
+    kamis_item_code: '',
+    kamis_kind_code: '',
+    kamis_rank_code: '',
   }
 }
 
 export default function IngredientMasterFormModal({ ingredient, onSave, onClose }) {
-  const [form, setForm] = useState(() => (ingredient ? { ...ingredient } : emptyForm()))
+  const [form, setForm] = useState(() => (ingredient ? { ...emptyForm(), ...ingredient } : emptyForm()))
   const isEdit = Boolean(ingredient)
 
   const update = (patch) => setForm((prev) => ({ ...prev, ...patch }))
@@ -130,6 +133,38 @@ export default function IngredientMasterFormModal({ ingredient, onSave, onClose 
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
+
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-600">
+              KAMIS 품목코드 (선택, 참고가격 조회용)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                type="text"
+                placeholder="품목코드"
+                value={form.kamis_item_code}
+                onChange={(e) => update({ kamis_item_code: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <input
+                type="text"
+                placeholder="품종코드(선택)"
+                value={form.kamis_kind_code}
+                onChange={(e) => update({ kamis_kind_code: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <input
+                type="text"
+                placeholder="등급코드(선택)"
+                value={form.kamis_rank_code}
+                onChange={(e) => update({ kamis_rank_code: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+            <span className="mt-1 block text-xs text-slate-400">
+              비워두면 이 식재료는 KAMIS 참고가격 조회 대상에서 제외됩니다(억지로 매칭하지 않음).
+            </span>
+          </div>
 
           <label className="flex items-center gap-2">
             <input

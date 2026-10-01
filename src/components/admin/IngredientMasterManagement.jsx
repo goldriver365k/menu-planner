@@ -7,6 +7,19 @@ import {
 } from '../../data/ingredientMasterDatabase'
 import { INGREDIENT_MASTER_CATEGORIES, INGREDIENT_MASTER_CATEGORY_LABELS } from '../../data/ingredientMasterTaxonomy'
 import IngredientMasterFormModal from './IngredientMasterFormModal'
+import KamisReferencePriceUpdate from './KamisReferencePriceUpdate'
+
+// kamis_reference_* 필드는 setKamisReferencePrice()(KamisReferencePriceUpdate.jsx)로만
+// 기록된다 — 이 일반 수정/추가 폼이 들고 있는 값을 그대로 저장소에 반영해버리면 "KAMIS는
+// 관리자가 [참고가격 업데이트]를 실행할 때만 반영된다"는 원칙이 깨질 수 있어, 여기서
+// 구조적으로 제외한다.
+function stripKamisReferenceFields(formData) {
+  const next = { ...formData }
+  delete next.kamis_reference_price
+  delete next.kamis_reference_unit
+  delete next.kamis_updated_at
+  return next
+}
 
 // 향후 레시피·원가 계산에 쓸 식재료 마스터 DB의 최소 관리 화면 — 추가/수정/비활성화/검색만
 // 제공한다(삭제·발주량 계산·가격이력 등은 이번 단계에서 의도적으로 만들지 않았다).
@@ -27,10 +40,11 @@ export default function IngredientMasterManagement() {
   }, [ingredients, search, categoryFilter])
 
   const handleSave = (formData) => {
+    const safeFormData = stripKamisReferenceFields(formData)
     if (editingIngredient && editingIngredient !== 'new') {
-      updateIngredientMaster(editingIngredient.id, { ...formData, updated_at: new Date().toISOString().slice(0, 10) })
+      updateIngredientMaster(editingIngredient.id, { ...safeFormData, updated_at: new Date().toISOString().slice(0, 10) })
     } else {
-      addIngredientMaster(formData)
+      addIngredientMaster(safeFormData)
     }
     setEditingIngredient(null)
     refresh()
@@ -58,6 +72,8 @@ export default function IngredientMasterManagement() {
           + 새 식재료 추가
         </button>
       </div>
+
+      <KamisReferencePriceUpdate ingredients={ingredients} onUpdated={refresh} />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input
@@ -89,6 +105,7 @@ export default function IngredientMasterManagement() {
               <th className="px-3 py-2.5">식재료명</th>
               <th className="px-3 py-2.5">분류</th>
               <th className="px-3 py-2.5">구매가</th>
+              <th className="px-3 py-2.5">참고가격(KAMIS)</th>
               <th className="px-3 py-2.5">수율</th>
               <th className="px-3 py-2.5">출처 / 갱신일</th>
               <th className="px-3 py-2.5">상태</th>
@@ -106,6 +123,19 @@ export default function IngredientMasterManagement() {
                   <td className="px-3 py-2.5 tabular-nums text-slate-700">
                     {ingredient.purchase_price.toLocaleString('ko-KR')}원 / {ingredient.purchase_quantity}
                     {ingredient.purchase_unit}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-slate-500">
+                    {ingredient.kamis_reference_price ? (
+                      <>
+                        {ingredient.kamis_reference_price.toLocaleString('ko-KR')}원/{ingredient.kamis_reference_unit}
+                        <br />
+                        <span className="text-amber-600">시장 참고가격 · {ingredient.kamis_updated_at}</span>
+                      </>
+                    ) : ingredient.kamis_item_code ? (
+                      '조회 전'
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-700">{ingredient.usable_yield}%</td>
                   <td className="px-3 py-2.5 text-xs text-slate-400">
@@ -146,7 +176,7 @@ export default function IngredientMasterManagement() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-sm text-slate-400">
+                <td colSpan={9} className="px-3 py-8 text-center text-sm text-slate-400">
                   {ingredients.length === 0 ? '등록된 식재료가 없습니다. "새 식재료 추가"로 시작하세요.' : '조건에 맞는 식재료가 없습니다.'}
                 </td>
               </tr>

@@ -36,7 +36,14 @@ function OrderRow({ row }) {
       <td className="px-3 py-2 text-slate-500">{row.orderUnit}</td>
       <td className="px-3 py-2 tabular-nums font-medium text-slate-900">{row.orderQuantity}</td>
       <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">
-        {row.unitPrice != null ? formatWon(row.unitPrice) : <span className="text-amber-600">가격 미등록</span>}
+        {row.unitPrice != null ? (
+          <>
+            {formatWon(row.unitPrice)}
+            {row.priceLabel && <span className="ml-1 text-[11px] font-medium text-amber-600">({row.priceLabel})</span>}
+          </>
+        ) : (
+          <span className="text-amber-600">가격 미등록</span>
+        )}
       </td>
       <td className="whitespace-nowrap px-3 py-2 tabular-nums font-semibold text-slate-900">
         {row.expectedAmount != null ? formatWon(row.expectedAmount) : <span className="font-normal text-amber-600">—</span>}
@@ -121,8 +128,9 @@ export default function PurchaseOrderSheet({ weekMenu, operatingDays, mealsSetti
         <div>
           <h2 className="text-base font-semibold text-slate-900">발주서</h2>
           <p className="mt-1 text-sm text-slate-500">
-            식재료 필요량을 발주단위로 올림 계산해 일별/주간 발주서를 만듭니다. KAMIS 연동
-            전까지는 식재료 마스터 DB에 등록한 구매가를 그대로 씁니다.
+            식재료 필요량을 발주단위로 올림 계산해 일별/주간 발주서를 만듭니다. 구매단가가
+            등록된 식재료는 그 값을 그대로 쓰고, 미등록 식재료만 KAMIS 참고가격이 있으면
+            '시장 참고가격'으로 보조 표시합니다.
           </p>
         </div>
         <span className="text-sm font-medium text-slate-400">{expanded ? '접기' : '펼치기'}</span>

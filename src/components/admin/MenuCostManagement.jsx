@@ -113,7 +113,12 @@ export default function MenuCostManagement() {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {line.status === 'OK' ? (
-                          <span className="text-slate-700">{formatWon(line.cost)}</span>
+                          <span className="text-slate-700">
+                            {formatWon(line.cost)}
+                            {line.priceLabel && (
+                              <span className="ml-1 text-[11px] font-medium text-amber-600">({line.priceLabel})</span>
+                            )}
+                          </span>
                         ) : (
                           <span className="font-medium text-amber-600">{STATUS_LABELS[line.status]}</span>
                         )}

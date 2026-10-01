@@ -64,6 +64,18 @@ function buildIngredientMasterRecord(id, data) {
     price_source: data.price_source || '관리자 입력',
     updated_at: data.updated_at || new Date().toISOString().slice(0, 10),
     active: data.active ?? true,
+    // KAMIS 매칭 코드는 관리자가 직접 입력하는 값이다 — 이름 유사도 등으로 자동 매칭을
+    // 시도하지 않는다(잘못된 품목의 가격이 섞여 들어가는 것을 방지). 코드가 비어 있으면
+    // 해당 식재료는 "미매칭"으로 취급한다.
+    kamis_item_code: data.kamis_item_code || '',
+    kamis_kind_code: data.kamis_kind_code || '',
+    kamis_rank_code: data.kamis_rank_code || '',
+    // kamis_reference_* 필드는 setKamisReferencePrice()를 통해서만 기록된다 — 일반 수정
+    // 폼(updateIngredientMaster)에서는 절대 건드리지 않는다. 구매단가(purchase_price)와
+    // 완전히 분리된, 참고용 전용 필드다.
+    kamis_reference_price: data.kamis_reference_price ?? null,
+    kamis_reference_unit: data.kamis_reference_unit || '',
+    kamis_updated_at: data.kamis_updated_at || null,
   }
 }
 
@@ -101,4 +113,17 @@ export function updateIngredientMaster(id, patch) {
 
 export function setIngredientMasterActive(id, active) {
   return updateIngredientMaster(id, { active, updated_at: new Date().toISOString().slice(0, 10) })
+}
+
+// KAMIS 참고가격 전용 setter. updateIngredientMaster(일반 수정 폼)와 완전히 분리해 두어,
+// 폼에서 kamis_reference_* 필드를 실수로 건드리거나 이 함수가 purchase_price를 건드리는
+// 일이 구조적으로 불가능하게 한다. 가격 우선순위 결정(기존 거래처/관리자 구매단가 > 직접
+// 입력 단가 > 최근 저장 단가 > KAMIS 참고가격)은 recipeCostCalc.js에서 처리하며, 여기서는
+// 받은 값을 그대로 저장만 한다 — KAMIS 값이 purchase_price를 자동으로 덮어쓰지 않는다.
+export function setKamisReferencePrice(id, { price, unit, updatedAt } = {}) {
+  return updateIngredientMaster(id, {
+    kamis_reference_price: price == null ? null : Number(price) || 0,
+    kamis_reference_unit: unit || '',
+    kamis_updated_at: updatedAt || new Date().toISOString().slice(0, 10),
+  })
 }

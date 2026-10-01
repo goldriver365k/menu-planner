@@ -14,15 +14,39 @@ import { getIngredientMasterById } from '../data/ingredientMasterDatabase'
 import { getStandardRecipeForMenu } from '../data/standardRecipeDatabase'
 import { unitsAreConvertible, toBaseQuantity } from './unitConversion'
 
-// 식재료 하나의 "구매단위 기본 수량 1단위당 원가". 구매가·구매수량이 없거나 0 이하면
-// 실제로 가격이 입력되지 않은 것으로 보고 임의 가격을 만들지 않는다('가격 미등록').
+// 식재료 하나의 "구매단위 기본 수량 1단위당 원가".
+//
+// 가격 우선순위(작업지시서 3-6):
+//   1~3. 실제 거래처/관리자 구매단가 · 직접 입력 단가 · 최근 저장 단가
+//        → 이 앱에는 거래처 관리/가격이력 기능이 없어(이전 단계에서 의도적으로 제외) 이
+//          세 가지가 데이터상 모두 같은 필드(ingredient.purchase_price)에 저장된다 —
+//          그 값이 있으면 항상 최우선으로 쓰고 KAMIS 값은 절대 덮어쓰지 않는다.
+//   4. KAMIS 참고가격 → purchase_price가 없을 때만 보조로 쓴다. 반드시 source: 'KAMIS'와
+//      priceLabel: '시장 참고가격'을 함께 돌려줘 화면에서 실제 구매가와 구분 표시하게 한다.
+//   5. 가격 미등록 → 둘 다 없으면 임의 가격을 만들지 않고 NO_PRICE로 처리한다(기존 동작 유지).
 export function calcIngredientUnitCost(ingredient) {
-  if (!ingredient) return { unitCost: null, status: 'NOT_FOUND' }
+  if (!ingredient) return { unitCost: null, status: 'NOT_FOUND', source: null, priceLabel: null, baseUnit: null }
+
   const price = Number(ingredient.purchase_price) || 0
   const qty = Number(ingredient.purchase_quantity) || 0
-  if (price <= 0 || qty <= 0) return { unitCost: null, status: 'NO_PRICE' }
-  const baseQty = toBaseQuantity(qty, ingredient.purchase_unit)
-  return { unitCost: price / baseQty, status: 'OK' }
+  if (price > 0 && qty > 0) {
+    const baseQty = toBaseQuantity(qty, ingredient.purchase_unit)
+    return { unitCost: price / baseQty, status: 'OK', source: 'ADMIN', priceLabel: null, baseUnit: ingredient.purchase_unit }
+  }
+
+  const kamisPrice = Number(ingredient.kamis_reference_price) || 0
+  if (kamisPrice > 0 && ingredient.kamis_reference_unit) {
+    const kamisBaseQty = toBaseQuantity(1, ingredient.kamis_reference_unit)
+    return {
+      unitCost: kamisPrice / kamisBaseQty,
+      status: 'OK',
+      source: 'KAMIS',
+      priceLabel: '시장 참고가격',
+      baseUnit: ingredient.kamis_reference_unit,
+    }
+  }
+
+  return { unitCost: null, status: 'NO_PRICE', source: null, priceLabel: null, baseUnit: null }
 }
 
 // 레시피 한 줄(식재료 1종)의 원가.
@@ -33,10 +57,12 @@ export function calcRecipeLineCost(line, ingredient) {
 
   if (!ingredient) return { ...line, ingredientName, cost: null, status: 'NOT_FOUND' }
 
-  const { unitCost, status: priceStatus } = calcIngredientUnitCost(ingredient)
+  const { unitCost, status: priceStatus, source, priceLabel, baseUnit } = calcIngredientUnitCost(ingredient)
   if (priceStatus === 'NO_PRICE') return { ...line, ingredientName, cost: null, status: 'NO_PRICE' }
 
-  if (!unitsAreConvertible(line.unit, ingredient.purchase_unit)) {
+  // 가격이 KAMIS 참고가격에서 왔다면(baseUnit = kamis_reference_unit) 단위 환산 가능 여부도
+  // 그 단위를 기준으로 확인한다 — ingredient.purchase_unit과는 무관하다.
+  if (!unitsAreConvertible(line.unit, baseUnit)) {
     return { ...line, ingredientName, cost: null, status: 'UNIT_MISMATCH' }
   }
 
@@ -45,7 +71,7 @@ export function calcRecipeLineCost(line, ingredient) {
   const baseQuantity = toBaseQuantity(actualNeededQuantity, line.unit)
   const cost = unitCost * baseQuantity
 
-  return { ...line, ingredientName, cost, status: 'OK' }
+  return { ...line, ingredientName, cost, status: 'OK', source, priceLabel }
 }
 
 // 메뉴 1인분 원가 — 레시피의 모든 식재료 원가를 합산한다.

@@ -129,10 +129,14 @@ function round2(n) {
 // 쓰고, 단가는 그 표시 단위 1개당 가격으로 환산한다.
 function buildOrderFields(ingredient, family, actualBase, actualDisplay) {
   const packInfo = calcPackInfo(ingredient, family, actualBase)
-  const { unitCost, status: priceStatus } = calcIngredientUnitCost(ingredient)
+  const { unitCost, status: priceStatus, source, priceLabel } = calcIngredientUnitCost(ingredient)
 
   if (packInfo) {
-    const unitPrice = priceStatus === 'OK' ? ingredient.purchase_price : null
+    // unitCost는 "기본단위(g/ml/개) 1개당 가격" — 포장 하나(packSize/packUnit) 가격으로
+    // 환산한다. 구매가가 등록돼 있으면(source: 'ADMIN') 이 값은 ingredient.purchase_price와
+    // 정확히 같다(기존 동작과 100% 동일) — KAMIS 참고가격으로 대신할 때만 결과가 달라진다.
+    const packBaseQty = toBaseQuantity(packInfo.packSize, packInfo.packUnit)
+    const unitPrice = priceStatus === 'OK' ? round2(unitCost * packBaseQty) : null
     return {
       orderUnit: '팩',
       orderQuantity: packInfo.packCount,
@@ -140,11 +144,22 @@ function buildOrderFields(ingredient, family, actualBase, actualDisplay) {
       unitPrice,
       expectedAmount: unitPrice != null ? round2(packInfo.packCount * unitPrice) : null,
       priceStatus,
+      source,
+      priceLabel,
     }
   }
 
   if (priceStatus !== 'OK') {
-    return { orderUnit: actualDisplay.unit, orderQuantity: actualDisplay.value, packInfo: null, unitPrice: null, expectedAmount: null, priceStatus }
+    return {
+      orderUnit: actualDisplay.unit,
+      orderQuantity: actualDisplay.value,
+      packInfo: null,
+      unitPrice: null,
+      expectedAmount: null,
+      priceStatus,
+      source: null,
+      priceLabel: null,
+    }
   }
 
   // unitCost는 "기본단위(g/ml/개) 1개당 가격" — 표시 단위(kg/L 등)로 환산해 보여준다.
@@ -157,6 +172,8 @@ function buildOrderFields(ingredient, family, actualBase, actualDisplay) {
     unitPrice,
     expectedAmount: round2(actualDisplay.value * unitPrice),
     priceStatus: 'OK',
+    source,
+    priceLabel,
   }
 }
 
