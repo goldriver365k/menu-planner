@@ -1,6 +1,32 @@
 import { DAYS } from '../data/planConfig'
 import { generateDayMenu, flattenMealItems } from './generateMeal'
 import { addDaysISO, buildExcludedIdSet, createHistoryEntry } from '../data/menuHistory'
+import { buildSlotKey, getItemAtRole } from './menuSlots'
+import { tallyItemProtein } from './menuQualityEngine'
+
+// STEP 15 작업지시서 14장: "전체 다시 생성(잠금 유지)"에서는 잠긴 메뉴가 그대로 남기 때문에,
+// 아직 처리하지 않은 요일에 잠겨 있는 메뉴의 단백질도 미리 집계해 둬야 주간 단백질 균형
+// 판단이 정확하다 — 그렇지 않으면 "월요일을 생성할 때는 목요일에 닭고기가 3번 잠겨 있다는
+// 걸 전혀 모르는" 상태가 된다.
+function seedWeekProteinCountsFromLocked(existingWeekMenu, lockedSlotKeys) {
+  const counts = {}
+  if (!existingWeekMenu) return counts
+  for (const day of DAYS) {
+    const dayMenu = existingWeekMenu[day]
+    if (!dayMenu) continue
+    for (const mealType of Object.keys(dayMenu)) {
+      const mealResult = dayMenu[mealType]
+      if (!mealResult) continue
+      for (const role of ['main1', 'main2']) {
+        const key = buildSlotKey(day, mealType, role)
+        if (lockedSlotKeys.has(key)) {
+          tallyItemProtein(counts, getItemAtRole(mealResult, role))
+        }
+      }
+    }
+  }
+  return counts
+}
 
 // STEP 4의 "월~일 주간 메뉴 생성"에 STEP 5의 14일 중복 검사, STEP 6의 잠금 유지
 // 재생성을 결합했다.
@@ -22,6 +48,9 @@ export function generateWeekMenu(
   const week = {}
   // 이번 생성 도중 배정된 항목까지 실시간으로 반영하기 위한 작업용 이력 배열.
   let runningHistory = [...persistedHistory]
+  // STEP 15: 주 전체에 걸친 단백질(main1/main2) 사용 집계 — 요일을 처리할 때마다 계속
+  // 누적되며, 잠겨서 유지될 메뉴의 몫은 미리 더해 둔다(위 seedWeekProteinCountsFromLocked).
+  const weekProteinCounts = seedWeekProteinCountsFromLocked(existingWeekMenu, lockedSlotKeys)
 
   DAYS.forEach((day, dayIndex) => {
     if (!operatingDays[day]) {
@@ -37,6 +66,7 @@ export function generateWeekMenu(
       day,
       lockedSlotKeys,
       existingDayMenu,
+      weekProteinCounts,
     })
     week[day] = dayResult
 

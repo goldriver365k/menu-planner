@@ -10,8 +10,10 @@ import WeeklySummary from '../components/WeeklySummary'
 import DedupHistoryStatus from '../components/DedupHistoryStatus'
 import { MEAL_TYPES, DAYS } from '../data/planConfig'
 import { generateWeekMenu, computeWeekHistoryEntries } from '../logic/generateWeek'
+import { generateMealMenu } from '../logic/generateMeal'
 import { buildSlotKey, extractLockedRoles } from '../logic/menuSlots'
 import { adjustMealToTargetCost, calcMealFinancials } from '../logic/costOptimize'
+import { tallyMealProtein } from '../logic/menuQualityEngine'
 import { addDaysISO, buildExcludedIdSet } from '../data/menuHistory'
 import { usePersistedPlanSettings } from '../hooks/usePersistedPlanSettings'
 import { useMenuHistory } from '../hooks/useMenuHistory'
@@ -121,6 +123,45 @@ export default function PlannerPage({ onOpenAdmin }) {
       )
 
       const nextWeek = { ...prev, [day]: { ...dayMenu, [mealType]: adjustedMeal } }
+      replaceWeekEntries(settings.weekStartDate, computeWeekHistoryEntries(nextWeek, settings.weekStartDate))
+      return nextWeek
+    })
+  }
+
+  // STEP 15 작업지시서 17장: [이 식단 다시 추천] — 전체 주간을 다시 만들지 않고 선택한
+  // 끼니 하나만 품질 규칙을 적용해 다시 뽑는다. 잠긴 메뉴는 그대로 유지된다.
+  const handleRegenerateMeal = (day, mealType) => {
+    setWeekMenu((prev) => {
+      if (!prev) return prev
+      const dayMenu = prev[day]
+      const mealSetting = settings.meals[mealType]
+      const existingMeal = dayMenu[mealType]
+      const lockedRoles = extractLockedRoles(lockedSlotKeys, day, mealType)
+
+      const date = addDaysISO(settings.weekStartDate, DAYS.indexOf(day))
+      const excludedIds = buildExcludedIdSet(history, date)
+
+      // 이 끼니만 다시 뽑아도 나머지 주간과의 단백질 균형은 그대로 고려하도록, 지금
+      // 바꾸려는 끼니 자신을 뺀 이번 주 나머지 끼니들로 통계를 다시 집계해서 넘긴다.
+      const weekProteinCounts = {}
+      for (const d of DAYS) {
+        const dm = prev[d]
+        if (!dm) continue
+        for (const mt of Object.keys(dm)) {
+          if (d === day && mt === mealType) continue
+          tallyMealProtein(weekProteinCounts, dm[mt])
+        }
+      }
+
+      const regenerated = generateMealMenu({
+        sideDishCount: mealSetting.sideDishCount,
+        excludedIds,
+        lockedRoles,
+        existingMeal,
+        weekProteinCounts,
+      })
+
+      const nextWeek = { ...prev, [day]: { ...dayMenu, [mealType]: regenerated } }
       replaceWeekEntries(settings.weekStartDate, computeWeekHistoryEntries(nextWeek, settings.weekStartDate))
       return nextWeek
     })
@@ -241,6 +282,7 @@ export default function PlannerPage({ onOpenAdmin }) {
               onToggleLock={handleToggleLock}
               onReplace={handleReplace}
               onAdjustCost={handleAdjustCost}
+              onRegenerateMeal={handleRegenerateMeal}
             />
           </>
         )}

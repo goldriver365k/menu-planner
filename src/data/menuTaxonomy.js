@@ -86,6 +86,15 @@ export const COOKING_METHODS = ['볶음', '구이', '튀김', '조림', '찜', '
 // 0=안 매움 · 1=약간 매움 · 2=매움 · 3=매우 매움
 export const SPICY_LEVEL_LABELS = { 0: '안 매움', 1: '약간 매움', 2: '매움', 3: '매우 매움' }
 
+// STEP 15(식단 품질 엔진) 작업지시서 8장: 색상 균형 판단용 분류.
+export const COLOR_GROUPS = ['RED', 'GREEN', 'WHITE', 'BROWN', 'YELLOW', 'OTHER']
+export const COLOR_GROUP_LABELS = {
+  RED: '빨강', GREEN: '초록', WHITE: '흰색', BROWN: '갈색', YELLOW: '노랑', OTHER: '기타',
+}
+
+// 작업지시서 9장: 1=가벼움 · 2=보통 · 3=무거움
+export const WEIGHT_LEVEL_LABELS = { 1: '가벼움', 2: '보통', 3: '무거움' }
+
 // 메뉴 데이터 출처 — menuDatabase.js의 모든 메뉴가 이 중 하나를 가진다 (STEP 14 작업지시서 13장).
 export const MENU_SOURCES = ['SEED', 'NEIS', 'ADMIN']
 export const MENU_SOURCE_LABELS = { SEED: '초기 테스트 DB', NEIS: 'NEIS 급식 데이터', ADMIN: '관리자 직접 등록' }
@@ -130,9 +139,11 @@ export const MIN_COUNTS = {
 //   source_count: 1,              // NEIS에서 동일 메뉴가 발견된 급식 식단 수
 //   possibleDuplicate: false,     // true면 기존 메뉴와 유사해 수동 통합이 필요할 수 있음
 //   possibleDuplicateOf: null,    // 유사하다고 판단된 기존 메뉴 id (있을 때만)
-//   protein_type: '',             // PROTEIN_TYPES 중 하나 (향후 식단 품질 엔진용)
+//   protein_type: '',             // PROTEIN_TYPES 중 하나 — 비어 있으면 식단 품질 엔진이
+//                                  // 이름 키워드로 추정해서 사용한다(logic/menuScoring.js)
 //   spicy_level: 0,               // 0~3
-//   color_group: '',
+//   color_group: '',              // 비어 있으면 마찬가지로 이름에서 추정
+//   weight_level: null,           // 1=가벼움 2=보통 3=무거움 — 모르면 null, 추정값으로 대체
 //   season: [],
 //   meal_type: [],
 // }

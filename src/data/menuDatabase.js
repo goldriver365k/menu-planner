@@ -52,6 +52,10 @@ function withDefaults(menu) {
     protein_type: menu.protein_type || '',
     spicy_level: menu.spicy_level ?? 0,
     color_group: menu.color_group || '',
+    // STEP 15(식단 품질 엔진): 1=가벼움 2=보통 3=무거움. 모르면 null로 두고 점수 계산
+    // 시점(menuScoring.getEffectiveWeightLevel)에 이름 키워드로 추정한다 — 여기서 임의의
+    // 숫자로 단정하면 "정말 모름"과 "보통으로 확인됨"을 구분할 수 없어진다.
+    weight_level: menu.weight_level ?? null,
     season: Array.isArray(menu.season) ? menu.season : [],
     meal_type: Array.isArray(menu.meal_type) ? menu.meal_type : [],
   }
@@ -149,6 +153,7 @@ function buildMenuRecord(id, menuData) {
     protein_type: menuData.protein_type || '',
     spicy_level: Number(menuData.spicy_level) || 0,
     color_group: menuData.color_group || '',
+    weight_level: menuData.weight_level != null ? Number(menuData.weight_level) || null : null,
     season: Array.isArray(menuData.season) ? menuData.season : [],
     meal_type: Array.isArray(menuData.meal_type) ? menuData.meal_type : [],
   }
@@ -194,6 +199,9 @@ function mergeMenuPatch(existing, patch) {
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
       merged[key] = Number(patch[key]) || 0
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'weight_level')) {
+    merged.weight_level = patch.weight_level != null ? Number(patch.weight_level) || null : null
   }
 
   return merged

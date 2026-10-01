@@ -5,6 +5,7 @@ import { buildMealSlotRoles, buildSlotKey } from '../logic/menuSlots'
 import EditableMealDetail from './EditableMealDetail'
 import MealCostSummary from './MealCostSummary'
 import NutritionSummary from './NutritionSummary'
+import MealQualityBadge from './MealQualityBadge'
 
 function cellSummary(result) {
   if (!result) return null
@@ -28,6 +29,7 @@ export default function WeeklyMenuResult({
   onToggleLock,
   onReplace,
   onAdjustCost,
+  onRegenerateMeal,
 }) {
   const [selected, setSelected] = useState(null) // { day, mealType }
 
@@ -127,9 +129,32 @@ export default function WeeklyMenuResult({
 
       {selectedResult && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-          <h3 className="mb-2 text-sm font-semibold text-slate-900">
-            {DAY_LABELS[selected.day]}요일 · {MEAL_LABELS[selected.mealType]}
-          </h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-slate-900">
+              {DAY_LABELS[selected.day]}요일 · {MEAL_LABELS[selected.mealType]}
+            </h3>
+            {(() => {
+              const regenerable = buildMealSlotRoles(selectedResult.sides.length).some(
+                (role) => !lockedSlotKeys.has(buildSlotKey(selected.day, selected.mealType, role))
+              )
+              return (
+                <button
+                  type="button"
+                  disabled={!regenerable}
+                  onClick={() => onRegenerateMeal(selected.day, selected.mealType)}
+                  title={regenerable ? undefined : '모든 메뉴가 잠겨 있어 다시 추천할 항목이 없습니다.'}
+                  className={[
+                    'shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold',
+                    regenerable
+                      ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      : 'cursor-not-allowed bg-slate-100 text-slate-300',
+                  ].join(' ')}
+                >
+                  이 식단 다시 추천
+                </button>
+              )
+            })()}
+          </div>
           <EditableMealDetail
             day={selected.day}
             mealType={selected.mealType}
@@ -140,6 +165,9 @@ export default function WeeklyMenuResult({
             onToggleLock={onToggleLock}
             onReplace={onReplace}
           />
+          <div className="mt-3">
+            <MealQualityBadge mealResult={selectedResult} />
+          </div>
           <div className="mt-3">
             <NutritionSummary mealResult={selectedResult} />
           </div>

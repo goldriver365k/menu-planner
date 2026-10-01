@@ -1,5 +1,6 @@
 import { calcWeeklyFinancials } from '../logic/weeklyFinancials'
 import { formatWon } from '../utils/mealCost'
+import { evaluateWeekProteinBalance } from '../logic/menuQualityEngine'
 
 function SummaryStat({ label, value, warn = false }) {
   return (
@@ -15,6 +16,7 @@ function SummaryStat({ label, value, warn = false }) {
 export default function WeeklySummary({ weekMenu, operatingDays, mealsSettings, costRate }) {
   const f = calcWeeklyFinancials(weekMenu, operatingDays, mealsSettings, costRate)
   const overBudget = f.totalIngredientCost > f.totalTargetIngredientCost
+  const proteinBalance = evaluateWeekProteinBalance(weekMenu)
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
@@ -24,6 +26,15 @@ export default function WeeklySummary({ weekMenu, operatingDays, mealsSettings, 
           ⚠ 이번 주 식단에 원가 미등록(NEIS) 메뉴가 포함되어 있어 아래 원가 관련 수치는 실제보다
           낮게 계산됐을 수 있습니다.
         </p>
+      )}
+      {proteinBalance.warnings.length > 0 && (
+        <ul className="mb-3 space-y-1 rounded-lg bg-white px-3 py-2">
+          {proteinBalance.warnings.map((w) => (
+            <li key={w} className="text-xs text-amber-600">
+              {w}
+            </li>
+          ))}
+        </ul>
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <SummaryStat label="주간 예상 총 식수" value={`${f.totalExpectedCount.toLocaleString('ko-KR')}명`} />

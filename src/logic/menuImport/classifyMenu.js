@@ -23,7 +23,7 @@ const PROTEIN_RULES = [
   { type: 'TOFU', keywords: ['두부', '순두부'] },
 ]
 
-function inferProteinType(name) {
+export function inferProteinType(name) {
   for (const rule of PROTEIN_RULES) {
     if (rule.keywords.some((kw) => name.includes(kw))) return rule.type
   }
@@ -32,7 +32,7 @@ function inferProteinType(name) {
 }
 
 const COOKING_METHOD_KEYWORDS = ['볶음', '구이', '튀김', '조림', '찜', '무침', '끓임', '전', '절임']
-function inferCookingMethod(name) {
+export function inferCookingMethod(name) {
   return COOKING_METHOD_KEYWORDS.find((kw) => name.includes(kw)) || ''
 }
 
