@@ -42,7 +42,9 @@ function key(date, ingredientId) {
 }
 
 // 과거 데이터(불린 true/false) 호환: 그대로 { checked } 모양으로 바꿔 돌려준다.
-function normalizeEntry(raw) {
+// STEP 5-11: 대시보드가 전체 발주 현황(발주완료/부분입고/입고완료 건수)을 집계할 때
+// 이 파일 밖에서도 같은 정규화 규칙을 쓸 수 있게 export한다 — 새로 만들지 않고 재사용.
+export function normalizeEntry(raw) {
   if (raw == null) return { checked: false }
   if (typeof raw === 'boolean') return { checked: raw }
   return { checked: false, ...raw }

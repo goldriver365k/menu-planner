@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AdminNav from '../components/admin/AdminNav'
+import OperationsDashboard from '../components/admin/OperationsDashboard'
 import MenuManagement from '../components/admin/MenuManagement'
 import NeisImportPanel from '../components/admin/NeisImportPanel'
 import UnclassifiedMenuPanel from '../components/admin/UnclassifiedMenuPanel'
@@ -23,7 +24,8 @@ const TITLES = {
 }
 
 export default function AdminPage({ onBack }) {
-  const [section, setSection] = useState('menus')
+  // 작업지시서 3장: 관리자 페이지를 열었을 때 가장 먼저 "오늘 운영 현황"을 보여준다.
+  const [section, setSection] = useState('dashboard')
 
   return (
     <div className="min-h-screen bg-white pb-24">
@@ -49,6 +51,7 @@ export default function AdminPage({ onBack }) {
         <div className="flex flex-col gap-6 sm:flex-row">
           <AdminNav active={section} onChange={setSection} />
           <div className="min-w-0 flex-1">
+            {section === 'dashboard' && <OperationsDashboard onNavigate={setSection} />}
             {section === 'menus' && <MenuManagement />}
             {section === 'neisImport' && <NeisImportPanel />}
             {section === 'unclassified' && <UnclassifiedMenuPanel />}
@@ -64,7 +67,7 @@ export default function AdminPage({ onBack }) {
             {section === 'mealCountStats' && <MealCountStatsManagement />}
             {section === 'settings' && <SettingsSection />}
             {![
-              'menus', 'neisImport', 'unclassified', 'ingredients', 'ingredientMaster',
+              'dashboard', 'menus', 'neisImport', 'unclassified', 'ingredients', 'ingredientMaster',
               'standardRecipe', 'menuCost', 'menuProfitability', 'salesRecords', 'menuProductionPlan',
               'menuPlanOrder', 'inventoryCount', 'mealCountStats', 'settings',
             ].includes(section) && (
