@@ -9,6 +9,7 @@ const SECTIONS = [
   { key: 'menuCost', label: '메뉴 원가 계산' },
   { key: 'menuProfitability', label: '메뉴 수익성' },
   { key: 'salesRecords', label: '실제 판매 입력' },
+  { key: 'menuProductionPlan', label: '메뉴별 준비계획' },
   { key: 'mealCountStats', label: '식수 통계' },
   { key: 'weekly', label: '주간 식단' },
   { key: 'history', label: '사용 이력' },

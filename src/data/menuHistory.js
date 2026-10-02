@@ -64,3 +64,12 @@ export function buildExcludedIdSet(history, referenceDate) {
 export function pruneHistory(history, referenceDate) {
   return history.filter((entry) => isWithinDedupWindow(entry.used_date, referenceDate))
 }
+
+// STEP 5-8: 날짜(YYYY-MM-DD)의 요일을 planConfig.js의 DAYS 키('mon'..'sun')로 돌려준다.
+// new Date(dateISO) 그대로 쓰면 UTC로 파싱돼 시간대에 따라 요일이 하루 밀릴 수 있다
+// (27장) — addDaysISO와 같은 "T00:00:00을 붙여 로컬 자정으로 파싱" 방식을 그대로 쓴다.
+const DAY_KEYS_BY_GETDAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+export function getDayOfWeekKey(dateISO) {
+  const date = new Date(`${dateISO}T00:00:00`)
+  return DAY_KEYS_BY_GETDAY[date.getDay()]
+}
