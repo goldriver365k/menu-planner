@@ -10,6 +10,7 @@ import MenuCostManagement from '../components/admin/MenuCostManagement'
 import MenuProfitabilityManagement from '../components/admin/MenuProfitabilityManagement'
 import SalesRecordManagement from '../components/admin/SalesRecordManagement'
 import MenuProductionPlanManagement from '../components/admin/MenuProductionPlanManagement'
+import MenuPlanOrderManagement from '../components/admin/MenuPlanOrderManagement'
 import MealCountStatsManagement from '../components/admin/MealCountStatsManagement'
 import SettingsSection from '../components/admin/SettingsSection'
 import PlaceholderSection from '../components/admin/PlaceholderSection'
@@ -57,12 +58,13 @@ export default function AdminPage({ onBack }) {
             {section === 'menuProfitability' && <MenuProfitabilityManagement />}
             {section === 'salesRecords' && <SalesRecordManagement />}
             {section === 'menuProductionPlan' && <MenuProductionPlanManagement />}
+            {section === 'menuPlanOrder' && <MenuPlanOrderManagement />}
             {section === 'mealCountStats' && <MealCountStatsManagement />}
             {section === 'settings' && <SettingsSection />}
             {![
               'menus', 'neisImport', 'unclassified', 'ingredients', 'ingredientMaster',
               'standardRecipe', 'menuCost', 'menuProfitability', 'salesRecords', 'menuProductionPlan',
-              'mealCountStats', 'settings',
+              'menuPlanOrder', 'mealCountStats', 'settings',
             ].includes(section) && (
               <PlaceholderSection title={TITLES[section]} />
             )}

@@ -39,6 +39,34 @@ export function getProcurementBaseCount({ plannedPreparationCount, expectedCount
 // 계열끼리는 임의로 합칠 수 없기 때문이다(예: 식용유를 어떤 레시피는 g, 어떤 레시피는 ml로
 // 쓰는 경우).
 //
+// STEP 5-9: 레시피 한 줄(식재료 1종, 1인분 사용량)을 "count인분"만큼 버킷에 누적한다.
+// accumulateDay(끼니 전체 식수 기준)와 menuPlanIngredientRequirement.js(독립 판매메뉴의
+// plannedMenuQuantity 기준)가 똑같은 수율/단위 계산을 쓰도록 공용으로 뽑아낸 함수다 —
+// "같은 계산엔진을 두 개 만들지 않는다"(5-9 작업지시서 30장)를 위해 꼭 재사용한다.
+// source를 넘기면(5-9 전용) 이 식재료가 어떤 메뉴 때문에 필요한지 bucket[key].sources에
+// 함께 쌓아준다 — accumulateDay는 넘기지 않으므로 기존 동작에는 전혀 영향이 없다.
+export function accumulateRecipeLine(bucket, ingredient, line, count, source = null) {
+  const family = unitFamily(line.unit)
+  const perServingBase = toBaseQuantity(Number(line.quantity) || 0, line.unit)
+  const totalNetBase = perServingBase * count
+
+  // 수율(usable_yield) 반영: 실제 필요량 = 순사용량 ÷ 수율
+  const yieldPercent = Number(ingredient.usable_yield) > 0 ? Number(ingredient.usable_yield) : 100
+  const actualNeededBase = totalNetBase / (yieldPercent / 100)
+
+  // COUNT 계열(개/봉지/판 등)은 단위 문자열이 정확히 같을 때만 같은 식재료로 합산한다
+  // ("개"와 "봉지"는 서로 다른 묶음이라 임의로 더할 수 없다) — 그래서 키에 단위까지
+  // 포함한다. WEIGHT/VOLUME은 kg↔g, L↔ml로 항상 환산 가능하므로 단위를 구분하지 않는다.
+  const countUnit = family === 'COUNT' ? line.unit : null
+  const key = `${ingredient.id}:${family}:${countUnit || ''}`
+  if (!bucket[key]) {
+    bucket[key] = { ingredientId: ingredient.id, name: ingredient.name, family, countUnit, netBase: 0, actualBase: 0, sources: [] }
+  }
+  bucket[key].netBase += totalNetBase
+  bucket[key].actualBase += actualNeededBase
+  if (source) bucket[key].sources.push({ ...source, netBase: totalNetBase })
+}
+
 // STEP 5-2: 기준 인원은 getProcurementBaseCount()로 정한다(plannedPreparationCount 우선,
 // 없으면 expectedCount) — date가 있으면 그 날짜+끼니의 4-1 기록에서 plannedPreparationCount를
 // 찾는다. 한 끼의 모든 메뉴(밥/국/메인/반찬/김치)에 같은 기준 인원을 적용한다(9장).
@@ -62,24 +90,7 @@ function accumulateDay(dayMenu, mealsSettings, bucket, date = null) {
         const ingredient = getIngredientMasterById(line.ingredient_id)
         if (!ingredient) continue // 식재료 마스터에서 지워진 참조 — 집계에서 조용히 제외
 
-        const family = unitFamily(line.unit)
-        const perServingBase = toBaseQuantity(Number(line.quantity) || 0, line.unit)
-        const totalNetBase = perServingBase * baseCount
-
-        // 수율(usable_yield) 반영: 실제 필요량 = 순사용량 ÷ 수율
-        const yieldPercent = Number(ingredient.usable_yield) > 0 ? Number(ingredient.usable_yield) : 100
-        const actualNeededBase = totalNetBase / (yieldPercent / 100)
-
-        // COUNT 계열(개/봉지/판 등)은 단위 문자열이 정확히 같을 때만 같은 식재료로 합산한다
-        // ("개"와 "봉지"는 서로 다른 묶음이라 임의로 더할 수 없다) — 그래서 키에 단위까지
-        // 포함한다. WEIGHT/VOLUME은 kg↔g, L↔ml로 항상 환산 가능하므로 단위를 구분하지 않는다.
-        const countUnit = family === 'COUNT' ? line.unit : null
-        const key = `${ingredient.id}:${family}:${countUnit || ''}`
-        if (!bucket[key]) {
-          bucket[key] = { ingredientId: ingredient.id, name: ingredient.name, family, countUnit, netBase: 0, actualBase: 0 }
-        }
-        bucket[key].netBase += totalNetBase
-        bucket[key].actualBase += actualNeededBase
+        accumulateRecipeLine(bucket, ingredient, line, baseCount)
       }
     }
   }
@@ -88,7 +99,7 @@ function accumulateDay(dayMenu, mealsSettings, bucket, date = null) {
 // 포장단위 올림 계산 — 식재료 마스터 DB의 purchase_quantity/purchase_unit을 "포장 단위"로
 // 그대로 재사용한다(예: purchase_unit='kg', purchase_quantity=5 → 5kg짜리 포장).
 // 작업지시서 예시: 필요량 37kg, 5kg/팩 → 8팩.
-function calcPackInfo(ingredient, family, baseQuantity) {
+export function calcPackInfo(ingredient, family, baseQuantity) {
   if (!ingredient) return null
   const packQty = Number(ingredient.purchase_quantity) || 0
   if (packQty <= 0) return null // 포장단위가 등록되어 있지 않으면 올림 계산을 하지 않는다.
@@ -104,7 +115,7 @@ function calcPackInfo(ingredient, family, baseQuantity) {
 // 재고는 그 식재료의 purchase_unit 기준으로 저장돼 있으므로, 필요량과 같은 단위 계열일
 // 때만 변환해서 차감한다. 재고가 미확인(null)이거나 단위 계열이 다르면 차감하지 않고
 // 그 사실을 status로 알려 화면에서 확정된 값처럼 보이지 않게 한다(11장).
-function applyStockDeduction(ingredient, family, actualBase) {
+export function applyStockDeduction(ingredient, family, actualBase) {
   if (!ingredient || ingredient.current_stock == null) {
     return { purchaseNeededBase: actualBase, stockBase: null, status: 'UNCONFIRMED' }
   }
@@ -175,7 +186,7 @@ function round2(n) {
 // 올림해서 발주하고, 단가는 그 포장 하나의 구매가(purchase_price)를 그대로 쓴다.
 // 포장단위가 없으면 수율반영 필요량을 표시 단위(kg/g/ml/L/개수단위) 그대로 발주수량으로
 // 쓰고, 단가는 그 표시 단위 1개당 가격으로 환산한다.
-function buildOrderFields(ingredient, family, actualBase, actualDisplay) {
+export function buildOrderFields(ingredient, family, actualBase, actualDisplay) {
   const packInfo = calcPackInfo(ingredient, family, actualBase)
   const { unitCost, status: priceStatus, source, priceLabel } = calcIngredientUnitCost(ingredient)
 
