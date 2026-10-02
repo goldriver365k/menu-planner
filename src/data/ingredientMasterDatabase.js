@@ -81,6 +81,12 @@ function buildIngredientMasterRecord(id, data) {
     // 전용 setter로만 기록되며, 일반 수정 폼에서는 그대로 보존만 한다.
     current_stock: data.current_stock ?? null,
     stock_updated_at: data.stock_updated_at || null,
+    // STEP 5-4: 실제 입고 시 기록되는 "가장 최근 실제 매입단가"(purchase_unit 1단위당 가격).
+    // purchase_price(관리자 기준단가)와는 완전히 분리된 필드다 — setLastPurchasePrice()
+    // 전용 setter로만 기록되고, purchase_price를 덮어쓰거나 삭제하지 않는다.
+    last_purchase_price: data.last_purchase_price ?? null,
+    last_purchase_unit: data.last_purchase_unit || '',
+    last_purchase_date: data.last_purchase_date || null,
   }
 }
 
@@ -149,6 +155,34 @@ export function setCurrentStock(id, currentStock) {
   const updated = updateIngredientMaster(id, {
     current_stock: value,
     stock_updated_at: new Date().toISOString().slice(0, 10),
+  })
+  return { ok: true, record: updated }
+}
+
+// STEP 5-4: 현재 재고에 delta(증감분, purchase_unit 기준)만 더한다. 실제 입고 저장
+// (purchaseOrderStatus.js의 saveReceiving)에서만 쓰인다 — 중복 반영을 막기 위해 "이번에
+// 새로 늘어난 만큼"만 delta로 전달받는다. 결과가 음수가 되지 않게 0 이하로는 내려가지
+// 않는다(재고 미확인 상태는 0으로 취급해 더한다).
+export function addToCurrentStock(id, delta) {
+  const ingredient = getIngredientMasterById(id)
+  if (!ingredient) return { ok: false, reason: '식재료를 찾을 수 없습니다.' }
+  const base = Number(ingredient.current_stock) || 0
+  const next = Math.max(0, base + (Number(delta) || 0))
+  return setCurrentStock(id, next)
+}
+
+// STEP 5-4: 실제 입고 시의 매입단가(purchase_unit 1단위당 가격) 전용 setter. purchase_price나
+// kamis_reference_price는 절대 건드리지 않는다 — 원가 계산 시 가격 우선순위를 가리는 데만
+// 쓰이는, 완전히 별도의 "최근 실제 매입단가" 기록이다.
+export function setLastPurchasePrice(id, { price, unit, date } = {}) {
+  const value = Number(price)
+  if (price == null || !Number.isFinite(value) || value < 0) {
+    return { ok: false, reason: '매입단가가 올바르지 않습니다.' }
+  }
+  const updated = updateIngredientMaster(id, {
+    last_purchase_price: value,
+    last_purchase_unit: unit || '',
+    last_purchase_date: date || new Date().toISOString().slice(0, 10),
   })
   return { ok: true, record: updated }
 }

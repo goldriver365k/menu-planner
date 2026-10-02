@@ -1,12 +1,120 @@
 import { useMemo, useState } from 'react'
 import { DAYS, DAY_LABELS, MEAL_TYPES, MEAL_LABELS } from '../data/planConfig'
 import { calcPurchaseOrderRows, getProcurementBaseCount } from '../logic/ingredientRequirement'
-import { isOrderChecked, setOrderChecked } from '../data/purchaseOrderStatus'
+import { isOrderChecked, setOrderChecked, getOrderEntry, saveReceiving } from '../data/purchaseOrderStatus'
 import { getMealCountRecord } from '../data/mealCountRecords'
+import { getIngredientMasterById } from '../data/ingredientMasterDatabase'
 
 function formatWon(n) {
   if (n == null) return '가격 미등록'
   return `${Math.round(n).toLocaleString('ko-KR')}원`
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100
+}
+
+const RECEIVING_STATUS_LABELS = { ORDERED: '발주만', PARTIAL: '부분입고', RECEIVED: '입고완료' }
+const RECEIVING_STATUS_COLORS = {
+  ORDERED: 'text-slate-400',
+  PARTIAL: 'text-amber-600',
+  RECEIVED: 'text-emerald-600',
+}
+
+// STEP 5-4: 실제 입고 수량·매입금액 기록 — 발주서 행마다 하나씩 들어간다. 주간 발주서
+// 행(row.date === null)은 여러 날짜를 합친 가상의 합계라 "실제 입고"를 기록할 날짜가 없으므로
+// 여기서는 입력을 막고 안내만 보여준다(입고는 항상 일별 발주서에서 기록한다).
+function ReceivingCell({ row }) {
+  const [entry, setEntry] = useState(() => (row.date ? getOrderEntry(row.date, row.ingredientId) : null))
+  const [receivedInput, setReceivedInput] = useState(() =>
+    entry?.receivedQuantity != null ? String(entry.receivedQuantity) : ''
+  )
+  const [amountInput, setAmountInput] = useState(() =>
+    entry?.actualPurchaseAmount != null ? String(entry.actualPurchaseAmount) : ''
+  )
+  const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
+
+  if (!row.date) {
+    return <span className="text-xs text-slate-400">일별 발주서에서 입력</span>
+  }
+
+  const handleSave = () => {
+    const ingredient = getIngredientMasterById(row.ingredientId)
+    const res = saveReceiving({
+      date: row.date,
+      ingredientId: row.ingredientId,
+      orderedQuantity: row.orderQuantity,
+      orderUnit: row.orderUnit,
+      packInfo: row.packInfo,
+      receivedQuantity: receivedInput,
+      actualPurchaseAmount: amountInput,
+      ingredient,
+    })
+    if (!res.ok) {
+      setError(res.reason)
+      return
+    }
+    setError('')
+    setWarning(res.stockWarning || '')
+    setEntry(res.entry)
+  }
+
+  const statusLabel = RECEIVING_STATUS_LABELS[entry?.receivingStatus || 'ORDERED']
+  const statusColor = RECEIVING_STATUS_COLORS[entry?.receivingStatus || 'ORDERED']
+  const diffQty = entry?.receivedQuantity != null ? round2(entry.receivedQuantity - (Number(row.orderQuantity) || 0)) : null
+  const diffAmount =
+    entry?.actualPurchaseAmount != null && row.expectedAmount != null
+      ? Math.round(entry.actualPurchaseAmount - row.expectedAmount)
+      : null
+  const overReceived = diffQty != null && diffQty > 0
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          min="0"
+          value={receivedInput}
+          onChange={(e) => setReceivedInput(e.target.value)}
+          placeholder={`수량(${row.orderUnit})`}
+          className="w-16 rounded border border-slate-300 px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+        />
+        <input
+          type="number"
+          min="0"
+          value={amountInput}
+          onChange={(e) => setAmountInput(e.target.value)}
+          placeholder="금액(원)"
+          className="w-20 rounded border border-slate-300 px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+        >
+          저장
+        </button>
+      </div>
+      {error && <span className="text-[11px] text-rose-600">{error}</span>}
+      {!error && warning && <span className="text-[11px] text-amber-600">{warning}</span>}
+      {entry?.receivedQuantity != null && (
+        <div className="text-[11px] text-slate-500">
+          <span className={`${statusColor} font-medium`}>{statusLabel}</span>
+          {entry.actualUnitPrice != null && (
+            <> · 실제단가 {Math.round(entry.actualUnitPrice).toLocaleString('ko-KR')}원/{row.orderUnit}</>
+          )}
+          {diffQty != null && diffQty !== 0 && (
+            <> · 수량차이 {diffQty > 0 ? '+' : ''}{diffQty}{row.orderUnit}</>
+          )}
+          {diffAmount != null && diffAmount !== 0 && (
+            <> · 금액차이 {diffAmount > 0 ? '+' : ''}{diffAmount.toLocaleString('ko-KR')}원</>
+          )}
+          {overReceived && <div className="text-amber-600">⚠ 초과 입고</div>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function OrderRow({ row }) {
@@ -62,6 +170,9 @@ function OrderRow({ row }) {
       </td>
       <td className="whitespace-nowrap px-3 py-2 tabular-nums font-semibold text-slate-900">
         {row.expectedAmount != null ? formatWon(row.expectedAmount) : <span className="font-normal text-amber-600">—</span>}
+      </td>
+      <td className="px-3 py-2">
+        <ReceivingCell row={row} />
       </td>
       <td className="px-3 py-2 text-center print:hidden">
         <input type="checkbox" checked={checked} onChange={handleToggle} className="h-4 w-4 rounded border-slate-300" />
@@ -141,6 +252,7 @@ function OrderTable({ rows, title }) {
                 <th className="px-3 py-2">발주수량</th>
                 <th className="px-3 py-2">단가</th>
                 <th className="px-3 py-2">예상금액</th>
+                <th className="px-3 py-2">실제입고</th>
                 <th className="px-3 py-2 text-center print:hidden">발주완료</th>
                 <th className="hidden px-3 py-2 text-center print:table-cell">상태</th>
               </tr>
@@ -155,7 +267,7 @@ function OrderTable({ rows, title }) {
                 <td className="px-3 py-2.5 text-slate-700" colSpan={9}>
                   예상 발주 총액
                 </td>
-                <td className="px-3 py-2.5 tabular-nums text-slate-900" colSpan={2}>
+                <td className="px-3 py-2.5 tabular-nums text-slate-900" colSpan={3}>
                   {formatWon(totalAmount)}
                 </td>
               </tr>

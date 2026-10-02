@@ -20,6 +20,10 @@ function stripKamisReferenceFields(formData) {
   delete next.kamis_updated_at
   delete next.current_stock
   delete next.stock_updated_at
+  // STEP 5-4: last_purchase_* 필드도 saveReceiving() 전용 흐름 밖에서는 건드리지 않는다.
+  delete next.last_purchase_price
+  delete next.last_purchase_unit
+  delete next.last_purchase_date
   return next
 }
 
@@ -163,8 +167,21 @@ export default function IngredientMasterManagement() {
                   <td className="px-3 py-2.5 font-medium text-slate-800">{ingredient.name}</td>
                   <td className="px-3 py-2.5 text-slate-500">{INGREDIENT_MASTER_CATEGORY_LABELS[ingredient.category]}</td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-700">
+                    <span className="text-[11px] text-slate-400">관리자 기준단가</span>
+                    <br />
                     {ingredient.purchase_price.toLocaleString('ko-KR')}원 / {ingredient.purchase_quantity}
                     {ingredient.purchase_unit}
+                    {ingredient.last_purchase_price != null && (
+                      <>
+                        <br />
+                        <span className="text-[11px] text-emerald-600">최근 실제 매입가</span>
+                        <br />
+                        <span className="text-emerald-700">
+                          {Math.round(ingredient.last_purchase_price).toLocaleString('ko-KR')}원/{ingredient.last_purchase_unit}
+                        </span>
+                        <span className="ml-1 text-[11px] text-slate-400">{ingredient.last_purchase_date}</span>
+                      </>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-500">
                     {ingredient.kamis_reference_price ? (
