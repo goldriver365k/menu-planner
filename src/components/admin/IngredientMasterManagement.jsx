@@ -9,6 +9,7 @@ import {
 import { INGREDIENT_MASTER_CATEGORIES, INGREDIENT_MASTER_CATEGORY_LABELS } from '../../data/ingredientMasterTaxonomy'
 import IngredientMasterFormModal from './IngredientMasterFormModal'
 import KamisReferencePriceUpdate from './KamisReferencePriceUpdate'
+import { getEffectiveIngredientPrice, PRICE_SOURCE_LABELS } from '../../logic/recipeCostCalc'
 
 // kamis_reference_*/current_stock 관련 필드는 각각 전용 setter(setKamisReferencePrice/
 // setCurrentStock)로만 기록된다 — 이 일반 수정/추가 폼이 들고 있는 값을 그대로 저장소에
@@ -182,6 +183,24 @@ export default function IngredientMasterManagement() {
                         <span className="ml-1 text-[11px] text-slate-400">{ingredient.last_purchase_date}</span>
                       </>
                     )}
+                    {(() => {
+                      // STEP 5-5(11장): 원가 계산에 실제로 적용되는 단가와 그 출처를 보여준다.
+                      // 관리자 기준단가/최근 실제 매입가는 위에서 그대로 보존해서 보여주고,
+                      // 이 줄은 getEffectiveIngredientPrice()가 최종적으로 고른 값만 요약한다.
+                      const effective = getEffectiveIngredientPrice(ingredient)
+                      if (effective.price == null) return null
+                      return (
+                        <>
+                          <br />
+                          <span className="text-[11px] text-blue-600">원가계산 적용단가</span>
+                          <br />
+                          <span className="text-blue-700">
+                            {Math.round(effective.price).toLocaleString('ko-KR')}원/{effective.unit}
+                          </span>
+                          <span className="ml-1 text-[11px] text-slate-400">({PRICE_SOURCE_LABELS[effective.source]})</span>
+                        </>
+                      )
+                    })()}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-500">
                     {ingredient.kamis_reference_price ? (

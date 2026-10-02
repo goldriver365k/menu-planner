@@ -1,12 +1,20 @@
 import { useState } from 'react'
 import { getAllMenus } from '../../data/menuDatabase'
-import { calcMenuRecipeCost } from '../../logic/recipeCostCalc'
+import { calcMenuRecipeCost, calcCostRate, calcMenuExpectedIngredientCost, PRICE_SOURCE_LABELS } from '../../logic/recipeCostCalc'
 import { CATEGORY_LABELS } from '../../data/menuTaxonomy'
 
 const STATUS_LABELS = {
   NOT_FOUND: '식재료 없음',
   NO_PRICE: '가격 미등록',
   UNIT_MISMATCH: '단위 환산 불가',
+}
+
+// STEP 5-5(10장): 복잡한 점수 없이 세 단계만 쓴다.
+const CONFIDENCE_LABELS = { COMPLETE: '완료', PARTIAL: '부분', UNAVAILABLE: '계산불가' }
+const CONFIDENCE_COLORS = {
+  COMPLETE: 'bg-emerald-50 text-emerald-700',
+  PARTIAL: 'bg-amber-50 text-amber-700',
+  UNAVAILABLE: 'bg-rose-50 text-rose-700',
 }
 
 function formatWon(n) {
@@ -59,11 +67,21 @@ function MenuPicker({ menus, value, onPick }) {
 // 연결해 메뉴 1인분 원가를 계산해서 보여준다. 여기서 계산한 값을 메뉴 DB의 cost_per_serving에
 // 자동 반영하지 않는다 — 그건 관리자가 메뉴 관리 화면에서 직접 입력/수정하는 값이고, 이
 // 화면은 "레시피 기준으로 보면 얼마인지" 참고용으로 보여주는 별개의 계산이다.
+//
+// STEP 5-5: 식재료 가격은 getEffectiveIngredientPrice()(recipeCostCalc.js)가 "최근 실제
+// 매입단가 > 관리자 구매단가 > KAMIS 참고가격" 순으로 고른 값을 자동으로 쓴다(이 화면에서
+// 따로 판단하지 않는다). 메뉴 DB에 판매가 필드가 없어, 원가율을 보려면 판매가를 이 화면에서
+// 직접 입력해 미리 계산해 볼 수 있게 했다(저장하지 않는, 화면 전용 계산기).
 export default function MenuCostManagement() {
   const [menus] = useState(() => getAllMenus())
   const [selectedMenu, setSelectedMenu] = useState(null)
+  const [salePriceInput, setSalePriceInput] = useState('')
+  const [plannedCountInput, setPlannedCountInput] = useState('')
 
   const result = selectedMenu ? calcMenuRecipeCost(selectedMenu.id) : null
+  const costRate = result?.status === 'OK' ? calcCostRate(result.totalCost, salePriceInput) : null
+  const expected =
+    selectedMenu && result?.status === 'OK' ? calcMenuExpectedIngredientCost(selectedMenu.id, plannedCountInput) : null
 
   return (
     <div>
@@ -71,7 +89,9 @@ export default function MenuCostManagement() {
         <h2 className="text-base font-semibold text-slate-900">메뉴 원가 계산</h2>
         <p className="mt-1 text-sm text-slate-500">
           표준 레시피에 등록된 식재료 사용량과 식재료 마스터 DB의 구매가를 기준으로 메뉴
-          1인분 원가를 계산합니다. kg↔g, L↔ml 기본 단위변환만 지원합니다.
+          1인분 원가를 계산합니다. kg↔g, L↔ml 기본 단위변환만 지원합니다. 식재료별 가격은
+          최근 실제 매입단가가 있으면 그 값을, 없으면 관리자 구매단가 → KAMIS 참고가격
+          순으로 자동으로 사용합니다.
         </p>
       </div>
 
@@ -93,7 +113,12 @@ export default function MenuCostManagement() {
 
         {selectedMenu && result?.status === 'OK' && (
           <div className="mt-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">{selectedMenu.name} · 1인분 기준</h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">{selectedMenu.name} · 1인분 기준</h3>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CONFIDENCE_COLORS[result.costConfidence]}`}>
+                원가 신뢰도: {CONFIDENCE_LABELS[result.costConfidence]}
+              </span>
+            </div>
             <div className="overflow-hidden rounded-xl border border-slate-200">
               <table className="w-full border-collapse text-sm">
                 <thead className="bg-slate-50">
@@ -136,12 +161,55 @@ export default function MenuCostManagement() {
                 </tfoot>
               </table>
             </div>
-            {result.hasIssue && (
+            {result.missingPriceCount > 0 && (
               <p className="mt-2 text-xs text-amber-600">
-                ⚠ 일부 식재료의 원가를 계산할 수 없어(가격 미등록 또는 단위 환산 불가) 합계가
-                실제보다 낮을 수 있습니다.
+                ⚠ 일부 식재료 가격 미등록 · {result.missingPriceCount}개 — 위 합계는 실제보다 낮을 수 있습니다.
               </p>
             )}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 p-3">
+                <label className="block text-xs font-medium text-slate-500">판매가(원) · 원가율 미리보기용 입력</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salePriceInput}
+                  onChange={(e) => setSalePriceInput(e.target.value)}
+                  placeholder="판매가 없음"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
+                />
+                <p className="mt-2 text-sm text-slate-700">
+                  원가율:{' '}
+                  {costRate != null ? (
+                    <span className="font-semibold text-slate-900">{costRate}%</span>
+                  ) : (
+                    <span className="text-amber-600">판매가 없음</span>
+                  )}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-3">
+                <label className="block text-xs font-medium text-slate-500">준비계획 인원(인분)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={plannedCountInput}
+                  onChange={(e) => setPlannedCountInput(e.target.value)}
+                  placeholder="인분 수 입력"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
+                />
+                <p className="mt-2 text-sm text-slate-700">
+                  예상 식재료비:{' '}
+                  {expected?.expectedIngredientCost != null ? (
+                    <span className="font-semibold text-slate-900">{formatWon(expected.expectedIngredientCost)}</span>
+                  ) : (
+                    <span className="text-slate-400">인원을 입력하세요</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-slate-400">
+              가격 출처 범례: {Object.values(PRICE_SOURCE_LABELS).join(' · ')}
+            </p>
           </div>
         )}
       </div>

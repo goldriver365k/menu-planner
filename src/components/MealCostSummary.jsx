@@ -1,5 +1,8 @@
 import { calcMealFinancials } from '../logic/costOptimize'
 import { formatWon, mealHasUnverifiedCost } from '../utils/mealCost'
+import { calcMealRecipeCost } from '../logic/recipeCostCalc'
+
+const CONFIDENCE_LABELS = { COMPLETE: '완료', PARTIAL: '부분', UNAVAILABLE: '계산불가' }
 
 function Stat({ label, value, emphasize = false, warn = false }) {
   return (
@@ -19,6 +22,10 @@ function Stat({ label, value, emphasize = false, warn = false }) {
 
 export default function MealCostSummary({ mealResult, mealSetting, costRatePercent, onAdjust, canAdjust }) {
   const f = calcMealFinancials(mealResult, mealSetting, costRatePercent)
+  // STEP 5-5(17장): 기존 예상매출/목표원가율/조정 계산(costOptimize.js)은 그대로 둔 채,
+  // "실제 레시피+실제 매입단가" 기준의 1인 원가를 참고용으로 추가 표시만 한다 — 위 계산의
+  // 어떤 값도 바꾸지 않는다(원가 초과 판정·조정 버튼 동작은 기존 cost_per_serving 기준 그대로).
+  const recipeCost = calcMealRecipeCost(mealResult)
 
   if (f.expectedCount === 0) {
     return (
@@ -50,6 +57,12 @@ export default function MealCostSummary({ mealResult, mealSetting, costRatePerce
           emphasize
         />
       </div>
+
+      {recipeCost.costConfidence !== 'UNAVAILABLE' && (
+        <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-400">
+          레시피 기준 실제원가(참고): {formatWon(recipeCost.totalCost)} · 신뢰도 {CONFIDENCE_LABELS[recipeCost.costConfidence]}
+        </p>
+      )}
 
       {f.isOverBudget && (
         <div className="mt-3 rounded-lg bg-amber-50 p-3">
