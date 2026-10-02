@@ -52,6 +52,11 @@ function withDefaults(menu) {
     protein_type: menu.protein_type || '',
     spicy_level: menu.spicy_level ?? 0,
     color_group: menu.color_group || '',
+    // STEP 5-6: 메뉴별 수익성 분석에 쓰는 "독립 판매가격". 대부분의 급식 반찬 메뉴는 이
+    // 값이 없는 게 정상이다(한 끼 전체에 매겨지는 mealSetting.pricePerServing과는 별개 —
+    // 화산불백처럼 단품으로 직접 판매되는 메뉴에만 관리자가 입력한다). 0(무료 제공)과
+    // null(가격 미등록)을 구분한다 — cost_per_serving과 동일한 패턴.
+    sale_price: menu.sale_price ?? null,
     season: Array.isArray(menu.season) ? menu.season : [],
     meal_type: Array.isArray(menu.meal_type) ? menu.meal_type : [],
   }
@@ -149,6 +154,7 @@ function buildMenuRecord(id, menuData) {
     protein_type: menuData.protein_type || '',
     spicy_level: Number(menuData.spicy_level) || 0,
     color_group: menuData.color_group || '',
+    sale_price: menuData.sale_price ?? null,
     season: Array.isArray(menuData.season) ? menuData.season : [],
     meal_type: Array.isArray(menuData.meal_type) ? menuData.meal_type : [],
   }
@@ -196,6 +202,12 @@ function mergeMenuPatch(existing, patch) {
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(patch, 'sale_price')) {
+    const raw = patch.sale_price
+    const parsed = raw === '' || raw == null ? null : Number(raw)
+    merged.sale_price = parsed == null || (Number.isFinite(parsed) && parsed >= 0) ? parsed : existing.sale_price
+  }
+
   return merged
 }
 
@@ -208,6 +220,17 @@ export function updateMenu(id, patch) {
 
 export function setMenuActive(id, active) {
   return updateMenu(id, { active })
+}
+
+// STEP 5-6: 판매가격 전용 setter — "메뉴 수익성" 화면에서만 쓴다. 빈 값/null은 그대로
+// null(판매가 미등록)로 저장하고, 음수·숫자아님은 거부하고 기존 값을 건드리지 않는다.
+export function setMenuSalePrice(id, salePrice) {
+  const value = salePrice === '' || salePrice == null ? null : Number(salePrice)
+  if (value != null && (!Number.isFinite(value) || value < 0)) {
+    return { ok: false, reason: '판매가격은 0 이상의 숫자만 입력할 수 있습니다.' }
+  }
+  const updated = updateMenu(id, { sale_price: value })
+  return { ok: true, record: updated }
 }
 
 export function deleteMenu(id) {
